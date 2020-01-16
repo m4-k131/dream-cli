@@ -282,7 +282,6 @@ def edit_background_color():
         
 
     
-    return r
 def edit_background():
     print(mediumline)
     
