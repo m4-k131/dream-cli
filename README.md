@@ -5,8 +5,11 @@ CLI for a deepdream-implementation using Google's inception-model. Place the ima
 # Dependencies
 
 -tensorflow
+
 -tensorflow-eigen
+
 -numpy
+
 -pillow
 
 # Settings
