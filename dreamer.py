@@ -178,7 +178,7 @@ def dream_image(image, settings, out_name):
         
         for iteration in range(iterations-octave*iteration_descent):
             
-            print("Iteration "+str(iteration+1)+" / "+str(iterations) + " Octave: " +str(octave+1)+" / "+str(octave_n))
+            print("Iteration "+str(iteration+1)+" / "+str(iterations-octave*iteration_descent) + " Octave: " +str(octave+1)+" / "+str(octave_n))
 ####Gradient
 
             gradients=[]
