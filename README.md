@@ -2,6 +2,13 @@
  
 CLI for a deepdream-implementation using Google's inception-model. Place the image(s) you want to render into the "Images" folder and run dreamcli.py
 
+# Dependencies
+
+-tensorflow
+-tensorflow-eigen
+-numpy
+-pillow
+
 # Settings
 
 Octaves: How many times the source image gets scaled down by octave_scale. 
