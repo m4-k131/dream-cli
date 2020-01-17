@@ -103,7 +103,7 @@ def main_menu():
 #        settings_dir='./Settings'
     print(longline)
 ##Print 
-    print('0: Select image \n1: Edit Settings \n2: Edit Renderer \n3: Continue(deepdream Image')
+    print('0: Select image \n1: Edit Settings \n2: Edit Renderer \n3: Continue(deepdream Image)')
     print(longline)
     
     selection=parse_input(0, 3, 'Enter corrosponding number to navigate:  ')
