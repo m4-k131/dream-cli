@@ -28,7 +28,7 @@ Each Renderer calculates the gradient for a specific layer[channels] with the co
 
 Layer & channels: 204 layers available, to render only the first channel of a layer, set channels to 0 and 1.
 
-Squared: Wether the tensor is squared or not
+Squared: Squares the tensor-output.
 
 Step size: The gradient gets multiplicated by the step_size each iteration. Higher values mean faster, but less accurate results. A negative step size results in a subtracted gradient. 
 
