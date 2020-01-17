@@ -1,6 +1,6 @@
 # dream-cli
  
-CLI for a deepdream-implementation. Place the image(s) you want to render into the "Images" folder and run dreamcli.py
+CLI for a deepdream-implementation using Google's inception-model. Place the image(s) you want to render into the "Images" folder and run dreamcli.py
 
 # Settings
 
