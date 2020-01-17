@@ -249,7 +249,6 @@ def edit_octave_scale():
         settings.c_settings.octave_scale=o
         
 def edit_iteration_descent():
-    #Important!!!! Check for complications with iterations
     print(mediumline)
     print('Current iteration_descent: '+str(settings.c_settings.iteration_descent))
     print(mediumline)
@@ -261,10 +260,8 @@ def edit_iteration_descent():
     if selection==1:
         max_descent=int(settings.c_settings.iterations/settings.c_settings.octaves)
         i=parse_input(-100, max_descent, "Enter Iteration descent (Can not be higher than Iterations/octaves=%d):"%max_descent )
-        print(i)
 
         settings.c_settings.iteration_descent=i
-        print(settings.c_settings.iteration_descent)
     
 def edit_background_color():
     print(shortline)
@@ -326,7 +323,6 @@ def renderer_menu():
         print('Current renderer:')
         for i in range(0, len(settings.c_settings.renderers)):
             print("-"+settings.c_settings.renderers[i].name)
-    #print renderer info
     else:
         print('-No Renderer selected-')
     print(longline)
@@ -349,12 +345,10 @@ def renderer_menu():
         if selected>0:
             settings.c_settings.renderers[selected-1]=edit_renderer_settings(settings.c_settings.renderers[selected-1])
         
-        #renderer_menu()
     if selection==2:
         add_renderer()
     if selection==3:
         load_renderer_menu()
-        #LOAD!
     if selection==4:
         remove_renderer_menu()
     if selection==5:
