@@ -183,7 +183,7 @@ def dream_image(image, settings, out_name):
 
             gradients=[]
             for i in range(len(renderers)):
-                if iteration%r.render_x_iteration==0:
+                if (iteration+1)%renderers[i].render_x_iteration==0:
                 
                     ##Pre Gradient preperations
                     
