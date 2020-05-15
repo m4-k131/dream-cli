@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Jan  4 11:45:48 2020
-
 @author: M.K.
 """
 
@@ -141,11 +140,14 @@ def select_image_menu():
     jpgs_names=[]
     all_files=os.listdir(image_dir)
     #Check for .jpg
+    jpg_index=0
     for i in range(len(all_files)):
-        if all_files[i].endswith(".jpg"):
-            print(str(i+1)+": "+all_files[i])
+        
+        if all_files[i].endswith(".jpg") or all_files[i].endswith(".JPEG"):
+            print(str(jpg_index+1)+": "+all_files[i])
             jpgs.append(os.path.join(image_dir, all_files[i]))
             jpgs_names.append(all_files[i])
+            jpg_index+=1
         
     #Input
     selection=parse_input(0, len(jpgs))
@@ -683,7 +685,6 @@ def load_settings( name):
         for n in t_settings.r_names:
             print(n)
             print(longline)
-
             t_settings.renderers.append(load_renderer(n+'.ddr'))
             print(t_settings.renderers)
         print(file_path +" loaded")
