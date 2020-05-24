@@ -757,6 +757,9 @@ def load_settings(name):
             for key, value pair writte renderer-settings to default renderer
         """
         settings.c_settings=t_settings
+        for r in settings.c_settings['renderers']:
+            if not r['mask_name']=='':
+                r['mask']=np.array(r['mask'])
     
     else:
         print('File not found. Falling back to default settings')

@@ -187,7 +187,7 @@ def dream_image(image, settings, out_name):
                 iteration_masks.append(resize(r['mask'], img.shape[:2])/255)#move up, /255 just once
             else:
                 iteration_masks.append([])
-        orig_img_m=resize(orig_img,img.shape[:2])/255#move up, /255 just once
+        orig_img_m=resize(image,img.shape[:2])/255#move up, /255 just once
         
 ####Iterations
         
