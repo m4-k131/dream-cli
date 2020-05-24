@@ -1,0 +1,35 @@
+{
+    "name": "m3a_3x3",
+    "layer": "mixed3a_3x3_bottleneck_pre_relu",
+    "f_channel": 0,
+    "l_channel": 40,
+    "max_channel": 96,
+    "squared": true,
+    "cropped": false,
+    "boundraries": [
+        [
+            0,
+            1
+        ],
+        [
+            0,
+            1
+        ]
+    ],
+    "rotate": false,
+    "rotation": 0,
+    "tile_size": 300,
+    "render_x_iteration": 1,
+    "step_size": 1,
+    "color_correction": false,
+    "cc_vars": [
+        1,
+        4,
+        4,
+        4
+    ],
+    "masked": false,
+    "mask": [],
+    "mask_name": "",
+    "t_masks": []
+}
