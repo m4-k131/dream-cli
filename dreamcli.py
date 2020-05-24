@@ -6,9 +6,11 @@ Created on Sat Jan  4 11:45:48 2020
 
 import os as os
 import settings as settings
-import pickle as pickle
 import utils as utils
 import dreamer as d
+import json
+import numpy as np
+
 
 image_dir='./Images'
 settings_dir='./Settings'
@@ -95,8 +97,8 @@ def main_menu():
         print('Image size:'+str(settings.orig_image.shape[0])+"x"+str(settings.orig_image.shape[1]))
     else:
         print('No image selected')
-    print('Settings: %s'%settings.c_settings.name)
-    print('Renderer: %d Renderer selected'%len(settings.c_settings.renderers))
+    print('Settings: %s'%settings.c_settings['name'])
+    print('Renderer: %d Renderer selected'%len(settings.c_settings['renderers']))
 #        settings=settings.Setting()
 #        image_dir='./Images'
 #        settings_dir='./Settings'
@@ -116,7 +118,7 @@ def main_menu():
     if selection==3:
         print(longline)
         if len (settings.orig_image)>0:
-            if len(settings.c_settings.renderers)>0:
+            if len(settings.c_settings['renderers'])>0:
                 dream()
             else:
                 print('No renderer selected! Add a renderer to dream the image')
@@ -132,6 +134,30 @@ def main_menu():
 """
 Image functions
 """
+def load_jpg():
+    print('0: back')
+    #Lists of files
+    jpgs=[]
+    jpgs_names=[]
+    all_files=os.listdir(image_dir)
+    #Check for .jpg
+    jpg_index=0
+    for i in range(len(all_files)):
+        
+        if all_files[i].endswith(".jpg") or all_files[i].endswith(".JPEG"):
+            print(str(jpg_index+1)+": "+all_files[i])
+            jpgs.append(os.path.join(image_dir, all_files[i]))
+            jpgs_names.append(all_files[i])
+            jpg_index+=1
+        
+    #Input
+    selection=parse_input(0, len(jpgs))
+
+    if selection >0:
+        return utils.load_image(jpgs[selection-1]), jpgs_names[selection-1]
+    else:
+        return [], ""
+                        
 def select_image_menu():
 
     print('0: back')
@@ -153,7 +179,6 @@ def select_image_menu():
     selection=parse_input(0, len(jpgs))
 
     if selection >0:
-        #global orig_img=[]
         settings.orig_image=select_image(jpgs[selection-1])
         settings.orig_image_name=jpgs_names[selection-1]
 
@@ -168,30 +193,32 @@ def change_settings():
     print(longline)
     print(shortline+'Settings menu')
     print(longline)
-    print('0: Back')
-    print('1:  Name: %s'%settings.c_settings.name)
-    print('2:  Iterations: %d'%settings.c_settings.iterations)
-    print('3:  Octaves: %d'%settings.c_settings.octaves)
-    print('4:  Octave scale: %.2f'%settings.c_settings.octave_scale)
-    print('5:  Iteration descent: %d'%settings.c_settings.iteration_descent)
-    print('6:  Background menu. Currently activated: '+str(settings.c_settings.save_gradient))
-    print('7:  Renderer menu. Current number of renderer: %d'%len(settings.c_settings.renderers))
-    print('8:  New Settings')
-    print('9:  Load Settings')
-    print('10: Save Settings')
+    print('0:  Back')
+    print('1:  Name: %s'%settings.c_settings['name'])
+    print('2:  Iterations: %d'%settings.c_settings['iterations'])
+    print('3:  Octaves: %d'%settings.c_settings['octaves'])
+    print('4:  Octave scale: %.2f'%settings.c_settings['octave_scale'])
+    print('5:  Iteration descent: %d'%settings.c_settings['iteration_descent'])
+    print('6:  Background menu. Currently activated: '+str(settings.c_settings['save_gradient']))
+    print('7:  Global color correction: '+str(settings.c_settings['color_correction']))
+    print('8:  Renderer menu. Current number of renderer: %d'%len(settings.c_settings['renderers']))
+    print('9:  New Settings')
+    print('10: Load Settings')
+    print('11: Save Settings')
     print(longline)
 
-    selection=parse_input(0, 10, msg="Enter selection:")
+    selection=parse_input(0, 11, msg="Enter selection:")
     switcher={1:edit_setting_name,
               2:edit_iterations,
               3:edit_octaves,
               4:edit_octave_scale,
               5:edit_iteration_descent,
               6:edit_background,
-              7:renderer_menu,
-              8:new_settings,
-              9:load_settings_menu,
-              10:save_settings}
+              7:edit_global_cc,
+              8:renderer_menu,
+              9:new_settings,
+              10:load_settings_menu,
+              11:save_settings}
     if selection >0:
         switcher[selection]()
         change_settings()
@@ -199,7 +226,7 @@ def change_settings():
         
 def edit_setting_name():
     print(mediumline)
-    print('Current name: %s'%settings.c_settings.name)
+    print('Current name: %s'%settings.c_settings['name'])
     print(mediumline)
     print('0: Back \n1:  Change Name')
     print(mediumline)
@@ -208,13 +235,13 @@ def edit_setting_name():
 
     if selection==1:
         n=parse_input(0, 2,'Enter Settings name:', t='string')
-        settings.c_settings.name=n
+        settings.c_settings['name']=n
     
 
 
 def edit_iterations():
     print(mediumline)
-    print('Current iterations: '+str(settings.c_settings.iterations))
+    print('Current iterations: '+str(settings.c_settings['iterations']))
     print(mediumline)
     print('0: Back \n1: Change iterations')
     print(mediumline)
@@ -222,12 +249,12 @@ def edit_iterations():
     
     if selection==1:
             i=parse_input(0, 10000, 'Enter new Iteration no.:')
-            settings.c_settings.iterations=i
+            settings.c_settings['iterations']=i
 
     
 def edit_octaves():
     print(mediumline)
-    print('Current octaves: '+str(settings.c_settings.octaves))
+    print('Current octaves: '+str(settings.c_settings['octaves']))
     print(mediumline)
     print('0: Back \n1: Change Octaves')
     print(mediumline)
@@ -235,11 +262,11 @@ def edit_octaves():
     if selection ==1:
         o=parse_input(1, 200, 'Enter Octave no.:')
 
-        settings.c_settings.octaves=o
+        settings.c_settings['octaves']=o
             
 def edit_octave_scale():
     print(mediumline)
-    print('Current octave_scale: '+str(settings.c_settings.octave_scale))
+    print('Current octave_scale: '+str(settings.c_settings['octave_scale']))
     print(mediumline)
     print('0: Back \n1: Change octave_scale')
     print(mediumline)
@@ -248,11 +275,11 @@ def edit_octave_scale():
     if selection ==1:
         o=parse_input(1, 50, 'Enter Octave scale (Recommended: between 1.1 and 2.0):', t='float')
 
-        settings.c_settings.octave_scale=o
+        settings.c_settings['octave_scale']=o
         
 def edit_iteration_descent():
     print(mediumline)
-    print('Current iteration_descent: '+str(settings.c_settings.iteration_descent))
+    print('Current iteration_descent: '+str(settings.c_settings['iteration_descent']))
     print(mediumline)
     print('0: Back \n1: Change iteration_descent')
     print(mediumline)
@@ -260,14 +287,14 @@ def edit_iteration_descent():
     selection=parse_input(0,1)
 
     if selection==1:
-        max_descent=int(settings.c_settings.iterations/settings.c_settings.octaves)
+        max_descent=int(settings.c_settings['iterations']/settings.c_settings['octaves'])
         i=parse_input(-100, max_descent, "Enter Iteration descent (Can not be higher than Iterations/octaves=%d):"%max_descent )
 
-        settings.c_settings.iteration_descent=i
+        settings.c_settings['iteration_descent']=i
     
 def edit_background_color():
     print(shortline)
-    print('Current background color: '+str(settings.c_settings.background))
+    print('Current background color: '+str(settings.c_settings['background']))
     print(shortline)
     print('0: Back \n1: Change background color')
     print(shortline)
@@ -277,15 +304,15 @@ def edit_background_color():
         r=parse_input(0,255, 'Enter Red value of background:')
         g=parse_input(0,255, 'Enter Green value of background:')
         b=parse_input(0,255, 'Enter Blue value of background:')
-        settings.c_settings.background=[r,g,b]
+        settings.c_settings['background']=[r,g,b]
         
 
     
 def edit_background():
     print(mediumline)
     
-    print('Write gradient onto empty background: '+str(settings.c_settings.save_gradient))
-    print('Background color: '+str(settings.c_settings.background))
+    print('Write gradient onto empty background: '+str(settings.c_settings['save_gradient']))
+    print('Background color: '+str(settings.c_settings['background']))
     print(mediumline)
     print('0: Back \n1: Activate/Deactivate if gradient is saved onto background \n2: Change background color')
     print(mediumline)
@@ -298,21 +325,40 @@ def edit_background():
         if selection==0:
             edit_background()
         if selection==1:
-            settings.c_settings.save_gradient=True
+            settings.c_settings['save_gradient']=True
             edit_background()
         if selection==2:
-            settings.c_settings.save_gradient=False
+            settings.c_c_settings['save_gradient']=False
             edit_background()
     if selection==2:
         edit_background_color()
         edit_background()
         
+        
 def new_settings():
-    settings.c_settings=settings.Setting()
+    settings.c_settings=settings.get_default_setting()
     
 """
 Renderer
 """
+def edit_global_cc():
+    
+    print(mediumline)
+    print('Global color correction: '+str(settings.c_settings['color_correction']))
+    print('Method: '+str(settings.c_settings['cc_vars'][0]))
+    print('RGB multiplier: '+str(settings.c_settings['cc_vars'][1:]))
+    print(mediumline)
+    print('0: Back \n1: Activate multiplier \n2: Deactivate multiplier\n3: Edit color correction values')
+    selection=parse_input(0,3)
+    if selection==1:
+        settings.c_settings['color_correction']=True
+        edit_global_cc()
+    if selection==2:
+        settings.c_settings['color_correction']=False
+        edit_global_cc()
+    if selection==3:
+        settings.c_settings=edit_cc_vars(settings.c_settings)
+        edit_global_cc()
 
     
 def renderer_menu():
@@ -321,10 +367,10 @@ def renderer_menu():
     print(longline)
 
     
-    if len(settings.c_settings.renderers)>0:
+    if len(settings.c_settings['renderers'])>0:
         print('Current renderer:')
-        for i in range(0, len(settings.c_settings.renderers)):
-            print("-"+settings.c_settings.renderers[i].name)
+        for i in range(0, len(settings.c_settings['renderers'])):
+            print("-"+settings.c_settings['renderers'][i]['name'])
     else:
         print('-No Renderer selected-')
     print(longline)
@@ -336,16 +382,16 @@ def renderer_menu():
         print('Select Renderer to edit:')
         print(shortline)
         print('0: Back')
-        for i in range(0, len(settings.c_settings.renderers)):
-            print(str(i+1)+": "+settings.c_settings.renderers[i].name +' | '+
-                  settings.c_settings.renderers[i].layer+
-                  '['+str(settings.c_settings.renderers[i].f_channel)
-                  +":"+str(settings.c_settings.renderers[i].l_channel)+"]")
+        for i in range(0, len(settings.c_settings['renderers'])):
+            print(str(i+1)+": "+settings.c_settings['renderers'][i]['name']+' | '+
+                  settings.c_settings['renderers'][i]['layer']+
+                  '['+str(settings.c_settings['renderers'][i]['f_channel'])
+                  +":"+str(settings.c_settings['renderers'][i]['l_channel'])+"]")
         print(shortline)
-        selected=parse_input(0, len(settings.c_settings.renderers)+1)
+        selected=parse_input(0, len(settings.c_settings['renderers'])+1)
         
         if selected>0:
-            settings.c_settings.renderers[selected-1]=edit_renderer_settings(settings.c_settings.renderers[selected-1])
+            settings.c_settings['renderers'][selected-1]=edit_renderer_settings(settings.c_settings['renderers'][selected-1])
         
     if selection==2:
         add_renderer()
@@ -363,19 +409,19 @@ def remove_renderer_menu():
         print('Select Renderer to remove:')
         print(shortline)
         print('0: Back')
-        for i in range(0, len(settings.c_settings.renderers)):
-            print(str(i+1)+": "+settings.c_settings.renderers[i].name +' | '+
-                  settings.c_settings.renderers[i].layer+
-                  '['+str(settings.c_settings.renderers[i].f_channel)
-                  +":"+str(settings.c_settings.renderers[i].l_channel)+"]")
+        for i in range(0, len(settings.c_settings['renderers'])):
+            print(str(i+1)+": "+settings.c_settings['renderers'][i]['name']+' | '+
+                  settings.c_settings['renderers'][i]['layer']+
+                  '['+str(settings.c_settings['renderers'][i]['layer']['f_channel'])
+                  +":"+str(settings.c_settings['renderers'][i]['layer']['l_channel'])+"]")
         print(shortline)
-        selected=parse_input(0, len(settings.c_settings.renderers)+1)
+        selected=parse_input(0, len(settings.c_settings['renderers'])+1)
         
         if selected>0:
-            del settings.c_settings.renderers[selected-1]
+            del settings.c_settings['renderers'][selected-1]
 def edit_r_name(r):
     print(mediumline)
-    print('Current name: '+str(r.name))
+    print('Current name: '+str(r['name']))
     print(mediumline)
     print('0: Back \n1: Change name')
     print(mediumline)
@@ -383,12 +429,14 @@ def edit_r_name(r):
     selection = parse_input(0,1)
     if selection==1:
         n=parse_input(0, 0,'Enter name:', t='string')
-        r.name=n
+        r['name']=n
     return r
+
 def add_renderer():
 
-    settings.c_settings.add_renderer()
-    settings.c_settings.renderers[len(settings.c_settings.renderers)-1]=select_layer_menu(settings.c_settings.renderers[len(settings.c_settings.renderers)-1])
+    settings.c_settings['renderers'].append(settings.get_default_renderer())
+    settings.c_settings['renderers'][-1]=select_layer_menu(settings.c_settings['renderers'][-1])
+    settings.c_settings['renderers'][-1]=edit_renderer_settings(settings.c_settings['renderers'][-1])
 
 def select_layer_menu(r):
     print(mediumline)
@@ -398,12 +446,14 @@ def select_layer_menu(r):
     for i in range(len(ll)):
         print(str(i)+": "+ll[i][0]+" Channels: "+str(ll[i][1]))
     selection=parse_input(0, len(ll))
-    r.set_layer(ll[selection][0],ll[selection][1])
+    r['layer']=(ll[selection][0])
+    r['l_channel']=ll[selection][1]
+    r['max_channel']=ll[selection][1]
     return r
 
 def edit_layer(r):
     print(mediumline)
-    print('Current layer: '+str(r.layer))
+    print('Current layer: '+str(r['layer']))
     print(mediumline)
     print('0: Back \n1: Change layer')
     selection=parse_input(0,2)
@@ -413,37 +463,37 @@ def edit_layer(r):
     return r
 def edit_channels(r):
     print(mediumline)
-    print('Current channels: First channel: '+str(r.f_channel)+" Last channel: "+str(r.l_channel))
+    print('Current channels: First channel: '+str(r['f_channel'])+" Last channel: "+str(r['l_channel']))
     print(mediumline)
     print('0: Back \n1: Change channels')
     print(mediumline)
     selection=parse_input(0, 2)
     if selection ==1:
         
-        f=parse_input(0, r.max_channel-1, "Enter first channel no. (Must be between 0 and "+str(r.max_channel-1)+"):")
-        l=parse_input(f+1, r.max_channel,"Enter last channel no. (Must be between "+str(f+1)+" and "+str(r.max_channel)+"):")
-        r.f_channel=f
-        r.l_channel=l
+        f=parse_input(0, r['max_channel']-1, "Enter first channel no. (Must be between 0 and "+str(r['max_channel']-1)+"):")
+        l=parse_input(f+1, r.max_channel,"Enter last channel no. (Must be between "+str(f+1)+" and "+str(r['max_channel'])+"):")
+        r['f_channel']=f
+        r['l_channel']=l
     
     return r
 def edit_squared(r):
     print(mediumline)
-    print('Squared gradient activated: '+str(r.squared))
+    print('Squared gradient activated: '+str(r['squared']))
     print(mediumline)
     print('0: Back \n1: Activate squared gradient \n2: Deactivate squared gradient')
     print(mediumline)
     selection=parse_input(0,3)
 
     if selection==1:
-        r.squared=True
+        r['squared']=True
     if selection==2:
-        r.squared=False
+        r['squared']=False
     return r
     
 
 def edit_step_size(r):
     print(mediumline)
-    print('Current step_size: '+str(r.step_size))
+    print('Current step_size: '+str(r['step_size']))
     print(mediumline)
     print('0: Back \n1: Edit step_size' )
     print(mediumline)
@@ -451,24 +501,24 @@ def edit_step_size(r):
 
     if selection ==1:
         sz=parse_input(-100, 100,'Enter step size (Recommended: between 2 and 0.01): ', t='float')
-        r.step_size=sz
+        r['step_size']=sz
     return r
     
     
     
 def edit_cropped(r):
     print(mediumline)
-    print('Cropped renderer activated: '+str(r.cropped))
-    print('Boundraries: '+str(r.boundraries))
+    print('Cropped renderer activated: '+str(r['cropped']))
+    print('Boundraries: '+str(r['boundraries']))
     print(mediumline)
     print('0: Back \n1: Activate cropped renderer \n2: Deactivate cropped renderer\n3: Edit boundraries')
     print(mediumline)
     selection=parse_input(0,3)
 
     if selection ==1:
-        r.cropped=True
+        r['cropped']=True
     if selection ==2:
-        r.cropped=False
+        r['cropped']=False
     if selection ==3:
         r=edit_boundraries(r)
         r=edit_cropped(r)
@@ -482,47 +532,45 @@ def edit_boundraries(r):
     x_max=parse_input(x_min, 1,'Enter x_max:', t='float')
     y_min=parse_input(0, 1,'Enter y_min:', t='float')
     y_max=parse_input(y_min,1,'Enter y_max:', t='float')
-    r.boundraries=[[x_min,x_max],[y_min, y_max]]
+    r['boundraries']=[[x_min,x_max],[y_min, y_max]]
     return r
 
         
     
-def edit_rgb_filter(r):
-    print(mediumline)
-    print('Warning! The Filter is very unoptimized and might increase render time greatly if activated!')
-    print('RGB-filter activated: '+str(r.filtered))
-    print('Filter values:' +str(r.rgb_filter))
+def edit_mask(r):
+    
     
     print(mediumline)
-    print('0: Back \n1: Activate filter \n2: Deactivate filter\n3: Edit filter values')
+    print('Mask activated: '+str(r['masked']))
+    print('Mask:' +str(r['mask_name']))
+    
     print(mediumline)
-    selection=parse_input(0, 3)
-    if selection==1:
-        r.filtered=True
-    if selection==2:
-        r.filtered=False
+    print('0: Back \n1: Activate Mask \n2: Deactivate Mask \n3: Load mask \n4: Remove mask')
+    print(mediumline)
+    selection=parse_input(0, 4)
+
+    if selection==1 or selection==2:
+        r['masked']=not r['masked']
+        
+        r=edit_mask(r)
     if selection==3:
-        r=edit_filter_values(r)
+        r['mask'],r['mask_name']=load_jpg()
+        r=edit_mask(r)
+    if selection ==4:
+        r['mask']=[]
+        r['mask_name']=''
+        r['maksed']=False
+        r=edit_mask(r)
+        
+    if len(r['mask_name'])==0:
+        r['masked']=False
+    ######set masked to false if mask is empty
 
     return r
-def edit_filter_values(r):
-    print(shortline)
-    print('Current filter values: '+str(r.rgb_filter))
-    print(shortline)
-    print('Enter the lowest (min) and highest (max) accepted Red, Green and Blue (r,g,b) values for this renderer to render a pixel (Must be between 0 and 255 and max values have to be highter than min values) :')
-    r_min=parse_input(0, 254, 'Enter r_min:')
-    r_max=parse_input((r_min+1), 255 ,'Enter r_max:')
-    g_min=parse_input(0, 254, 'Enter g_min:')
-    g_max=parse_input(g_min+1, 255, 'Enter g_max:')
-    b_min=parse_input(0, 254 ,'Enter b_min:')
-    b_max=parse_input(b_min+1, 255)
-    r.rgb_filter=[[r_min, r_max],[g_min, g_max], [b_min, b_max]]
-    
 
-    return r
 def edit_rotate(r):
     print(mediumline)
-    print('Current rotation: %d° right'%(r.rotation*90))
+    print('Current rotation: %d° right'%(r['rotation']*90))
     print(mediumline)
     print('0: Back \n1: Rotate 0° right (deactivate rotation) \n2: Rotate 90° right\n3: Rotate 180° right \n4: Rotate 270° right')
     print(mediumline)
@@ -530,99 +578,123 @@ def edit_rotate(r):
 
     if selection>0:
         if selection==1:
-            r.rotation=0
-            r.rotate=False
+            r['rotation']=0
+            r['rotate']=False
         else:
-            r.rotation=selection-1
-            r.rotate=True
+            r['rotation']=selection-1
+            r['rotate']=True
     return r
         
 
 def edit_tile_size(r):
     print(mediumline)
-    print('Current tile size: '+str(r.tile_size))
+    print('Current tile size: '+str(r['tile_size']))
     print(mediumline)
     print('0: Back \n1: Edit tile size')
     print(mediumline)
     selection=parse_input(0,1)
     if selection==1:
-        tz=parse_input(1, 800, 'Enter Tile size (should be around 300):')
-        r.tile_size=tz
+        tz=parse_input(1, 10000, 'Enter Tile size (should be around 300):')
+        r['tile_size']=tz
     
     return r
     
-def edit_multiply_colors(r):
+def edit_renderer_cc(r):
+    
     print(mediumline)
-    print('Multiply color channels activated: '+str(r.multiply_colors))
-    print('Color multiplier: '+str(r.color_mult))
+    print('Renderer specific color correction: '+str(r['color_correction']))
+    print('Method: '+str(r['cc_vars'][0]))
+    print('RGB multiplier: '+str(r['cc_vars'][1:]))
     print(mediumline)
-    print('0: Back \n1: Activate multiplier \n2: Deactivate multiplier\n3: Edit multiplier')
+    print('0: Back \n1: Activate multiplier \n2: Deactivate multiplier\n3: Edit color correction values')
     selection=parse_input(0,3)
     if selection==1:
-        r.multiply_colors=True
+        r['color_correction']=True
+        r=edit_renderer_cc(r)
     if selection==2:
-        r.multiply_colors=False
+        r=edit_renderer_cc(r)
+        r['color_correction']=False
     if selection==3:
-        r=edit_color_mult(r)
-        r=edit_multiply_colors(r)
+        r=edit_cc_vars(r)
+        r=edit_renderer_cc(r)
+
     return r
-def edit_color_mult(r):
+def edit_cc_vars(rs):
     print(shortline)
-    print('Current color multiplier: '+str(r.color_mult))
+    print('Current Method: '+str(rs['cc_vars'][0]))
+    print('Current RGB multiplier: '+str(rs['cc_vars'][1:]))
     print(shortline)
-    print('0: Back \n1: Edit color multiplier')
+    print('0: Back \n1: Edit Method \n2: Edit RGB multiplier')
     print(shortline)
-    selection=parse_input(0,1)
+    
+    selection=parse_input(0,2)
     if selection==1:
-        print('Enter the color multiplier (mult) for the Red, Green and Blue channel (r,g,b). Recommended values are between -3.0 and 3.0')
+        print('0: Back \n1: Simple Grayscale correction \n2: Retaining original colors \n3: Linear correction')
+        print(shortline)
+        new_selection=parse_input(0,3)
+        if selection>0:
+            rs['cc_vars'][0]=new_selection
+            rs=edit_cc_vars(rs)
+    if selection ==2:
+        print(shortline)
+        print('Current color multiplier: '+str(rs['cc_vars'][1:]))
+        print(shortline)
+        print('Enter the color multiplier (mult) for the Red, Green and Blue channel (r,g,b). Recommended values are between -5.0 and 5.0')
         red=parse_input(-100,100,'Enter r_mult:', t='float')
         green=parse_input(-100,100,'Enter g_mult:', t='float')
         blue=parse_input(-100,100,'Enter b_mult:', t='float')
-        r.color_mult=[red,green,blue]
-        
-    return r
+        rs['cc_vars'][1:]=[red,green,blue]
+        rs=edit_cc_vars(rs)
+            
+    return rs
 def edit_render_x_iteration(r):
     print(mediumline)
-    print('Currently rendering every %d iteration (1=render every Iteration)'%r.render_x_iteration)
+    print('Currently rendering every %d iteration (1=render every Iteration)'%r['render_x_iteration'])
     print(mediumline)
     print('0: back \n1: Edit')
     print(mediumline)
     selection=parse_input(0,1)
     if selection ==1:
         x=parse_input(0, 10000, "Enter new value:")
-        r.render_x_iteration=x
+        r['render_x_iteration']=x
     return r
+
 def edit_renderer_settings(r):
     print(longline)
     print(shortline+'Renderer')
     print(longline)
     print('0:  Back')
-    print('1:  Name: %s'%r.name)
-    print('2:  Layer: %s'%r.layer)
-    print('3:  Channels: '+str(r.f_channel)+"-"+str(r.l_channel))
-    print('4:  Squared: '+str(r.squared))
-    print('5:  Step size: %.5f'%r.step_size)
+    print('1:  Name: %s'%r['name'])
+    print('2:  Layer: %s'%r['layer'])
+    print('3:  Channels: '+str(r['f_channel'])+"-"+str(r['l_channel']))
+    print('4:  Squared: '+str(r['squared']))
+    print('5:  Step size: %.5f'%r['step_size'])
     
-    if r.cropped:
+    if r['cropped']:
         print('6:  Cropped: Activated with Boundraries: '+str(r.boundraries))
     else:
-        print('6:  Cropped: '+str(r.cropped))
+        print('6:  Cropped: '+str(r['cropped']))
         
     
-    if r.filtered:
-        print('7:  RGB-filter. Activated with filter values:'+str(r.rgb_filter))
+    if r['masked']:
+        print('7:  Masked gradient activated ')
+
     else:
-        print('7:  RGB-filter. Activated: '+str(r.filtered))
-    if r.rotate:
-        print('8:  Rotation. Activated with '+ str(r.rotation*90)+'° right')
+        print('7:  Masked gradient deactivated')
+    
+    if r['rotate']:
+        print('8:  Rotation. Activated with '+ str(r['rotation']*90)+'° right')
     else:
         print('8:  Rotation deactivated')
-    print('9:  Tile size: %d'%r.tile_size)
-    if r.multiply_colors:
-        print('10: Color multiplier activated with '+str(r.color_mult))
+    print('9:  Tile size: %d'%r['tile_size'])
+    
+    
+    if r['color_correction']:
+        print('10: Renderer specific color correction activated ')
     else:
-        print('10: Color multiplier deactivated')
-    print('11: Render every %d iteration'%r.render_x_iteration)
+        print('10: Color correction deactivated')
+    
+    print('11: Render every %d iteration'%r['render_x_iteration'])
     print('12: Save current Renderer to file')
     print(longline)
 
@@ -633,10 +705,10 @@ def edit_renderer_settings(r):
               4:edit_squared,
               5:edit_step_size,
               6:edit_cropped,
-              7:edit_rgb_filter,
+              7:edit_mask,
               8:edit_rotate,
               9:edit_tile_size,
-              10:edit_multiply_colors,
+              10:edit_renderer_cc,
               11:edit_render_x_iteration,
               12:save_renderer}
 
@@ -645,53 +717,50 @@ def edit_renderer_settings(r):
         edit_renderer_settings(r)
 
     return r
-"""
-Save & Load
-Needs clean-up/rework, ideally settings and renderers should be saved to a json-file
-"""
+
 
 def save_settings():
-    """
-    settings.r_names=[]
-    for r in settings.c_settings.renderers:
-        print('a')
-        r=save_renderer(r)
-        settings.c_settings.r_names.append(r.name)
-    
-    """
-    t_name=settings.c_settings.name+'.dds'
-    
+
+    t_name=settings.c_settings['name']+'_s.json'
     file=os.path.join(settings_dir, t_name)
     overwrite=False
     while os.path.exists(file) and overwrite ==False:
         print(t_name+ " already exists. Do you want to overwrite it or rename your current setting?")
         overwrite=parse_or()
         if not overwrite:
-            settings.c_settings.name=parse_input(msg="Enter new name:", t='string')
-            t_name=settings.c_settings.name+'.dds'
+            settings.c_settings['name']=parse_input(msg="Enter new name:", t='string')
+            t_name=settings.c_settings['name']+'_s.json'
             file=os.path.join(settings_dir, t_name)
             
-    pickle.dump( settings.c_settings, open( file, "wb" ) )
+    with open(t_name, "w") as fp:
+        json.dump(settings.c_settings, fp, indent=4)
+
         
     
 
 
-def load_settings( name):
-    #file_path = os.path.join(settings_dir, name)
+def load_settings(name):
+    file_path = os.path.join(settings_dir, name)
     file_path=name
     if os.path.exists(file_path):
-        t_settings=pickle.load( open( name, "rb" ) )
+        with open(file_path, 'r') as fp:
+            t_settings=json.load(fp)
+        
         """
-        for n in t_settings.r_names:
-            print(n)
-            print(longline)
-            t_settings.renderers.append(load_renderer(n+'.ddr'))
-            print(t_settings.renderers)
-        print(file_path +" loaded")
+        Backwards compatibility:
+        Get default settings
+        
+        For key, value pair write settings to default settings
+        
+        For layer in t_settings:
+            get default layer
+            for key, value pair writte renderer-settings to default renderer
         """
+        settings.c_settings=t_settings
+    
     else:
         print('File not found. Falling back to default settings')
-        t_settings=settings.Setting()
+        t_settings=settings.get_default_setting()
 
     return t_settings
 
@@ -701,7 +770,7 @@ def load_settings_menu():
     ddss=[] #All .dds-files in folder
     dds_names=[]
     for file in os.listdir(settings_dir):
-        if file.endswith('.dds'):
+        if file.endswith('_s.json'):
             ddss.append(os.path.join(settings_dir, file))
             dds_names.append(file)
     for i in range(len(dds_names)):
@@ -709,19 +778,20 @@ def load_settings_menu():
     print(mediumline)
     selection=parse_input(0, len(dds_names), "Select File to load:")
     if selection>0:
-        settings.c_settings.renderers=[]
-        settings.c_settings.r_names=[]
+        settings.c_settings['renderers']=[]
+        settings.c_settings['r_names']=[]
         settings.c_settings=load_settings(ddss[selection-1])
 
         
 
 def load_renderer_menu():
+    #change variable names2
     print(mediumline)
     print("0: Back")
     ddrs=[]
     ddr_names=[]
     for file in os.listdir(renderer_dir):
-        if file.endswith('.ddr'):
+        if file.endswith('_r.json'):
             ddrs.append(os.path.join(renderer_dir, file))
             ddr_names.append(file)
     for i in range(len(ddr_names)):
@@ -729,20 +799,25 @@ def load_renderer_menu():
     print(mediumline)
     selection=parse_input(0, len(ddr_names), "Select File to load:")
     if selection>0:
-        settings.c_settings.renderers.append(load_renderer(ddrs[selection-1]))
+        settings.c_settings['renderers'].append(load_renderer(ddrs[selection-1]))
 
 def save_renderer( t_renderer):
-    t_name=t_renderer.name+'.ddr'
+    t_name=t_renderer['name']+'_r.json'
     filepath=os.path.join(renderer_dir, t_name)
     overwrite=False
     while os.path.exists(filepath) and overwrite==False:
         print(t_name+ " already exists. Do you want to overwrite it or rename your current Renderer?")
         overwrite=parse_or()
         if not overwrite:
-            t_renderer.name=parse_input(msg="Enter new name:", t='string')
-            t_name=t_renderer.name+'.ddr'
+            t_renderer['name']=parse_input(msg="Enter new name:", t='string')
+            t_name=t_renderer['name']+'_r.json'
             filepath=os.path.join(renderer_dir, t_name)
-    pickle.dump( t_renderer, open( filepath, "wb" ) )
+    if not t_renderer['mask_name'] =='':
+        t_renderer['mask']=t_renderer['mask'].tolist()
+    with open(filepath, "w") as fp:
+        json.dump(t_renderer, fp, indent=4)
+    if not t_renderer['mask_name'] =='':
+        t_renderer['mask']=np.array(t_renderer['mask'])
     return t_renderer
 
 def save_renderer_menu():
@@ -750,27 +825,32 @@ def save_renderer_menu():
     print('Select Renderer to save:')
     print(shortline)
     print('0: Back')
-    for i in range(0, len(settings.c_settings.renderers)):
-        print(str(i+1)+": "+settings.c_settings.renderers[i].name +' | '+
-              settings.c_settings.renderers[i].layer+
-              '['+str(settings.c_settings.renderers[i].f_channel)
-              +":"+str(settings.c_settings.renderers[i].l_channel)+"]")
+    for i in range(0, len(settings.c_settings['renderers'])):
+        print(str(i+1)+": "+settings.c_settings['renderers'][i]['name'] +' | '+
+              settings.c_settings['renderers'][i]['layer']+
+              '['+str(settings.c_settings['renderers'][i]['f_channel'])
+              +":"+str(settings.c_settings['renderers'][i]['l_channel'])+"]")
     print(shortline)
-    selected=parse_input(0, len(settings.c_settings.renderers)+1)
+    selected=parse_input(0, len(settings.c_settings['renderers'])+1)
     
     if selected>0:
-        settings.c_settings.renderers[selected-1]=save_renderer(settings.c_settings.renderers[selected-1])
+        settings.c_settings['renderers'][selected-1]=save_renderer(settings.c_settings['renderers'][selected-1])
 
 def load_renderer(name):
     file_path =name
     print(file_path)
     if os.path.exists(file_path):
+        with open(file_path, 'r') as fp:
+            t_renderer=json.load(fp)
+            """
+            Backwards compatibility as in load_settings()
+            """
         
-        t_renderer=pickle.load( open( file_path, "rb" ) )
     else:
         print('File not found. Adding default renderer')
-        t_renderer=settings.Renderer()
-        
+        t_renderer=settings.get_default_renderer()
+    if not t_renderer['mask_name'] =='':
+        t_renderer['mask']=np.array(t_renderer['mask'])
     return t_renderer
 """
 Dream
