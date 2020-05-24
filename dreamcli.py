@@ -732,7 +732,7 @@ def save_settings():
             t_name=settings.c_settings['name']+'_s.json'
             file=os.path.join(settings_dir, t_name)
             
-    with open(t_name, "w") as fp:
+    with open(file, "w") as fp:
         json.dump(settings.c_settings, fp, indent=4)
 
         
@@ -804,7 +804,7 @@ def load_renderer_menu():
     if selection>0:
         settings.c_settings['renderers'].append(load_renderer(ddrs[selection-1]))
 
-def save_renderer( t_renderer):
+def save_renderer(t_renderer):
     t_name=t_renderer['name']+'_r.json'
     filepath=os.path.join(renderer_dir, t_name)
     overwrite=False
