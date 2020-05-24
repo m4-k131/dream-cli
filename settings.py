@@ -51,7 +51,7 @@ def get_default_renderer():
         'color_correction':False,
         'cc_vars':[1, 4, 4, 4],
 		'masked': False,
-        'mask':np.zeros(1),
+        'mask':[],
         'mask_name':'',
         't_masks':[]
         }
