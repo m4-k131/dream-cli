@@ -70,3 +70,60 @@ def save_image(img, filename):
 def load_image(filename):
     image = Image.open(filename)
     return np.float32(image)
+
+
+def gradient_grading(grad, image, method=1, fr=4, fg=4,fb=4 ):
+    
+    if method==1 or method==2:
+        #Grayscale
+        r, g, b = grad[:,:,0], grad[:,:,1], grad[:,:,2]
+        gg = 0.2989 * r + 0.5870 * g + 0.1140 * b
+
+        if method==1:
+            graded=np.expand_dims(gg, 2)
+            graded=grad*[fr, fg, fb]
+        else:
+            #Grayscale masked
+            om_r, om_g, om_b =image[:,:,0], image[:,:,1], image[:,:,2]
+            g_mask=0.2989 * om_r + 0.5870 * om_g + 0.1140 * om_b
+
+            graded=np.zeros_like(grad)
+            graded[:,:,0]=gg*fr*(om_g)
+            graded[:,:,1]=gg*fg*(om_r)
+            graded[:,:,2]=gg*g_mask*fb
+
+    else:
+        #Linear
+        graded=grad*np.array(fr, fg, fb)
+    return graded
+
+
+def get_bounds(x_max, y_max, renderers):
+    t_bounds=[]
+    for r in renderers:
+        if r['cropped']:
+            boundraries=r['boundraries']
+            x_lower=boundraries[0][0]*x_max
+            x_upper=boundraries[0][1]*x_max
+            y_lower=boundraries[1][0]*y_max
+            y_upper=boundraries[1][1]*y_max
+            t_bounds.append([int(x_lower), int(x_upper), int(y_lower), int(y_upper)])
+        else:
+            t_bounds.append([0,x_max,0,y_max])
+            
+    return t_bounds
+    
+def get_bounds(x_max, y_max, renderers):
+    t_bounds=[]
+    for r in renderers:
+        if r['cropped']:
+            b=r['boundraries']
+            x_lower=b[0][0]*x_max
+            x_upper=b[0][1]*x_max
+            y_lower=b[1][0]*y_max
+            y_upper=b[1][1]*y_max
+            t_bounds.append([int(x_lower), int(x_upper), int(y_lower), int(y_upper)])
+        else:
+            t_bounds.append([0,x_max,0,y_max])
+            
+    return t_bounds
