@@ -1,0 +1,35 @@
+{
+    "name": "m4a_1x1_organic",
+    "layer": "mixed4a_1x1_pre_relu",
+    "f_channel": 67,
+    "l_channel": 68,
+    "max_channel": 192,
+    "squared": true,
+    "cropped": false,
+    "boundraries": [
+        [
+            0,
+            1
+        ],
+        [
+            0,
+            1
+        ]
+    ],
+    "rotate": false,
+    "rotation": 0,
+    "tile_size": 300,
+    "render_x_iteration": 1,
+    "step_size": 1,
+    "color_correction": false,
+    "cc_vars": [
+        1,
+        4,
+        4,
+        4
+    ],
+    "masked": false,
+    "mask": [],
+    "mask_name": "",
+    "t_masks": []
+}

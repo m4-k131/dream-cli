@@ -1,0 +1,35 @@
+{
+    "name": "m4a_3x3_dna",
+    "layer": "mixed4a_3x3_pre_relu",
+    "f_channel": 15,
+    "l_channel": 16,
+    "max_channel": 204,
+    "squared": true,
+    "cropped": false,
+    "boundraries": [
+        [
+            0,
+            1
+        ],
+        [
+            0,
+            1
+        ]
+    ],
+    "rotate": true,
+    "rotation": 1,
+    "tile_size": 300,
+    "render_x_iteration": 1,
+    "step_size": 1,
+    "color_correction": false,
+    "cc_vars": [
+        1,
+        4,
+        4,
+        4
+    ],
+    "masked": false,
+    "mask": [],
+    "mask_name": "",
+    "t_masks": []
+}
