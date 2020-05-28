@@ -412,8 +412,8 @@ def remove_renderer_menu():
         for i in range(0, len(settings.c_settings['renderers'])):
             print(str(i+1)+": "+settings.c_settings['renderers'][i]['name']+' | '+
                   settings.c_settings['renderers'][i]['layer']+
-                  '['+str(settings.c_settings['renderers'][i]['layer']['f_channel'])
-                  +":"+str(settings.c_settings['renderers'][i]['layer']['l_channel'])+"]")
+                  '['+str(settings.c_settings['renderers'][i]['f_channel'])
+                  +":"+str(settings.c_settings['renderers'][i]['l_channel'])+"]")
         print(shortline)
         selected=parse_input(0, len(settings.c_settings['renderers'])+1)
         
@@ -731,13 +731,16 @@ def save_settings():
             settings.c_settings['name']=parse_input(msg="Enter new name:", t='string')
             t_name=settings.c_settings['name']+'_s.json'
             file=os.path.join(settings_dir, t_name)
+        for r in settings.c_settings['renderers']:
+            if not r['mask_name']=='':
+                r['mask']=r['mask'].tolist()
             
     with open(file, "w") as fp:
         json.dump(settings.c_settings, fp, indent=4)
-
         
-    
-
+    for r in settings.c_settings['renderers']:
+        if not r['mask_name']=='':
+            r['mask']=np.array(r['mask'])
 
 def load_settings(name):
     file_path = os.path.join(settings_dir, name)
