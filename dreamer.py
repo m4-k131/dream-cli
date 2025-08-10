@@ -98,9 +98,9 @@ class Dreamer:
     def set_layer(self, layer, squared:bool = True, first_channel:int = 0, last_channel:int = 1):
         with tfc.device(self.__device_name):
             if squared:
-                t_obj=tfc.square(T(layer)[:,:,:,first_channel:last_channel])
+                t_obj=tfc.square(self.__T(layer)[:,:,:,first_channel:last_channel])
             else:
-                t_obj=T(layer)[:,:,:,first_channel:last_channel]
+                t_obj=self.__T(layer)[:,:,:,first_channel:last_channel]
             t_score = tfc.reduce_mean(t_obj)  # defining the optimization objective
             t_grad = tfc.gradients(t_score, self.__t_input)[0]  
         return t_grad
