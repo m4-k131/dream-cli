@@ -6,7 +6,7 @@ Created on Sat Jan  4 12:55:31 2020
 import os
 import numpy as np
 
-def get_default_setting():
+def get_default_setting() -> dict:
     setting_dict={
         'name':"default_setting",
         'iterations':20,
@@ -18,12 +18,11 @@ def get_default_setting():
         'renderers':[],
         'color_correction':False,
         'cc_vars':[1, 4, 4, 4],
-        
-        
         }
     return setting_dict
     
-def get_default_renderer():
+
+def get_default_renderer() -> dict:
     renderer_dict={
         'name':"default_renderer",
         'layer':"conv2d1_pre_relu",
