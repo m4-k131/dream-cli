@@ -38,10 +38,15 @@ python -c "import tensorflow as tf; print(tf.__version__); print(tf.config.list_
 
 The separate Conda env **`tf`** on this machine is the **sanity reference** (GPU + TensorFlow stack). **`environment.yml`** was aligned to that stack, except **Python is 3.10** here so new code can use pattern matching while staying on **TF 2.9.x** and **`tensorflow.compat.v1`**.
 
+## Code layout
+
+- **`dream_cli/`** — refactored stack: **`DreamApplication`** (state + files + `run_dream`), **`DreamSettings` / `RendererConfig`** dataclasses, **`InteractiveDreamCli`** (menus), **`Prompter`** (input only), **`inception_layers.json`** (layer metadata).
+- **`dreamcli.py`** — `python dreamcli.py` with optional **`--root`** for the project directory (defaults to the current working directory).
+
 ## Usage
 
 1. Put input images as **`.jpg`** / **`.JPEG`** in the **`Images/`** folder (create it if needed).
-2. Run **`dreamcli.py`** from the repo root.
+2. Run **`dreamcli.py`** from the repo root (or pass **`--root`** if you start it elsewhere).
 3. Use the menus to pick an image, adjust **settings** and **renderers**, then continue to run the dream.
 4. Outputs go under **`renderedImages/`** (see `utils.save_folder`).
 
@@ -77,3 +82,9 @@ Each renderer optimizes one **layer** and a **channel range** (`f_channel`–`l_
 ## Note on native Windows and TensorFlow
 
 Recent **pip-only** TensorFlow on **native Windows** is often **CPU-only**. This project relies on **Conda-provided CUDA/cuDNN** plus a **TensorFlow build that still supports native Windows GPU** (here **2.9.x**, same family as the reference **`tf`** env). For a slightly newer line with **Python 3.10** wheels, **TensorFlow 2.10.1** also publishes **`cp310-win_amd64`** wheels; bump the pin in `environment.yml` if you want to try it.
+
+## License and third-party software
+
+- **This repository’s own code** is under the **MIT License**; see [`LICENSE`](LICENSE).
+- **Apache-licensed model files are not in git.** `inception5h.zip`, `tensorflow_inception_graph.pb`, and `imagenet_comp_graph_label_strings.txt` are in [`.gitignore`](.gitignore). **Publishing this repo does not redistribute those artifacts.** People who run the app still install **TensorFlow** (Apache 2.0) via Conda/PyPI and may download the Inception bundle at runtime—compliance with those upstream licenses applies to their install/use, not to the contents of this source tree.
+- Tutorial reference: [Hvass-Labs/TensorFlow-Tutorials](https://github.com/Hvass-Labs/TensorFlow-Tutorials) (see that repo’s license). More detail: **[`NOTICE`](NOTICE)**.

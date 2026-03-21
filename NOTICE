@@ -1,0 +1,51 @@
+Third-party notices for dream-cli
+==================================
+
+What this repository contains
+-----------------------------
+
+The source code committed in this repository is licensed under the MIT License;
+see the file LICENSE in the root of this repository.
+
+The following files are intentionally **not** part of this repository (they are
+listed in `.gitignore` and must not be committed):
+
+- `inception5h.zip`
+- `tensorflow_inception_graph.pb`
+- `imagenet_comp_graph_label_strings.txt`
+
+So **publishing or cloning this repo alone does not redistribute** those Google /
+TensorFlow model artifacts. They may appear only on a developer’s machine after
+running the app, which downloads them separately.
+
+What users still obtain elsewhere
+--------------------------------
+
+When someone **runs** dream-cli, they typically install **TensorFlow** and other
+packages via Conda or PyPI and may **download** the Inception 5h archive at
+runtime (URL in code:
+`http://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip`).
+Those components are **not** MIT-licensed; TensorFlow and those model files are
+under the **Apache License, Version 2.0**:
+
+- https://www.apache.org/licenses/LICENSE-2.0
+- https://github.com/tensorflow/tensorflow
+
+Anyone who installs, runs, or repackages those binaries is responsible for
+complying with Apache-2.0 and any other upstream terms. That obligation comes
+from **their** install or download, not from this repo shipping those files.
+
+Tutorial reference
+------------------
+
+The file `dreamer.py` credits patterns from:
+
+- https://github.com/Hvass-Labs/TensorFlow-Tutorials (notebook “14_DeepDream.ipynb”)
+
+Consult that repository’s license for the original tutorial material.
+
+Other dependencies
+------------------
+
+Runtime Python dependencies (NumPy, Pillow, etc.) are governed by the licenses
+in each package’s metadata on PyPI or Conda.
