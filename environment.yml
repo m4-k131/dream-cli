@@ -17,3 +17,4 @@ dependencies:
       - numpy==1.26.4
       - pillow==10.2.0
       - protobuf==3.19.6
+      - ruff>=0.9

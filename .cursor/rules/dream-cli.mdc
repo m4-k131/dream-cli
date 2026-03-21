@@ -41,3 +41,8 @@ Interactive CLI for **DeepDream** on still images using Google’s **Inception �
 - Prefer **small, focused changes**; the codebase is legacy-style (menus, dict settings, module globals in `settings.py`).
 - When changing the dream loop or graph usage, keep **compat.v1** APIs and tensor names consistent with the imported graph.
 - Do not assume ad hoc `pip install tensorflow` defines the GPU stack; see **README** / **`environment.yml`** for **`.venv`**. Optional bump: **TensorFlow 2.10.1** also has **cp310** Windows wheels if you need a small step newer than 2.9.x.
+
+## Ruff
+
+- **Always run Ruff** after meaningful Python changes: from the repo root, `ruff check .` (or `python -m ruff check .` / `.venv/Scripts/ruff check .` using the **`.venv`** interpreter from **`environment.yml`**). Scope to touched paths when the full tree is unnecessary.
+- **Fix all Ruff findings** (or adjust config with a clear reason) before considering the task complete; Ruff is the project linter — Pylance/Pyright are not used for lint rules here.
