@@ -1,0 +1,19 @@
+# Conda prefix env for this repo (see README). CUDA/cuDNN pins match the author's `tf` env
+# (from `conda list --export`); Python is 3.10 for structural pattern matching; TF stays 2.9.x
+# (official cp310 win_amd64 wheels on PyPI).
+# Create: conda env create -f environment.yml -p .venv
+# Update: conda env update -f environment.yml -p .venv --prune
+name: dream-cli-venv
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - cudatoolkit=11.2.2
+  - cudnn=8.1.0.77
+  - pip:
+      - tensorflow==2.9.3
+      - numpy==1.26.4
+      - pillow==10.2.0
+      - protobuf==3.19.6

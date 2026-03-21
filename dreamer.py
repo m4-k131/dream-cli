@@ -4,13 +4,13 @@ Created on Sat Jan  4 11:53:10 2020
 TF-functions copied from https://github.com/Hvass-Labs/TensorFlow-Tutorials/blob/master/14_DeepDream.ipynb
 """
 
-import PIL as PIL
 import numpy as np
 import tensorflow as tf
 import utils as utils
 import tensorflow.compat.v1 as tfc
 import math
 import time as time
+from typing import Any
  
  
 
@@ -28,8 +28,8 @@ class Dreamer:
         if len(tf.config.experimental.list_physical_devices('GPU')) > 0:
             self.__device_name='GPU:0'
         with tfc.device(self.__device_name):
-            self.__graph = tfc.Graph()
-            self.__sess = tfc.InteractiveSession(graph=self.__graph)
+            self.graph = tfc.Graph()
+            self.sess = tfc.InteractiveSession(graph=self.graph)
         #Load model and build Graph
         print('Ignore the following Gfile-warning:')
         with tfc.gfile.FastGFile(Constants.model_fn, 'rb') as f, tfc.device(self.__device_name):
@@ -39,14 +39,14 @@ class Dreamer:
             self.__graph_def.ParseFromString(f.read())
             self.__t_input = tfc.placeholder(np.float32, name = 'input')
             #default 117.0
-            t_preprocessed = tf.expand_dims(self.__t_input - Constants.__imagenet_mean, 0)
+            t_preprocessed = tf.expand_dims(self.__t_input - Constants.imagenet_mean, 0)
             tfc.import_graph_def(self.__graph_def, {'input':t_preprocessed})
-        self.__resize = self.tffunc(np.float32, np.int32)(self.resize)
+        self.__resize = self.tffunc(np.float32, np.int32)(Dreamer.resize)
     
     
     def T(self, layer):
         '''Helper for getting layer output tensor'''
-        return self.__graph.get_tensor_by_name("import/%s:0" % layer)
+        return self.graph.get_tensor_by_name("import/%s:0" % layer)
  
 
     @staticmethod
@@ -90,7 +90,7 @@ class Dreamer:
             for x in range(0, max(w-sz//2, sz),sz):
                 sub = img_shift[y:y+sz,x:x+sz]
                 with tfc.device(self.__device_name):
-                    g = self.__sess.run(t_grad, {self.__t_input:sub})
+                    g = self.sess.run(t_grad, {self.__t_input:sub})
                     grad[y:y+sz,x:x+sz] = g
         return np.roll(np.roll(grad, -sx, 1), -sy, 0)
  
@@ -98,9 +98,9 @@ class Dreamer:
     def set_layer(self, layer, squared:bool = True, first_channel:int = 0, last_channel:int = 1):
         with tfc.device(self.__device_name):
             if squared:
-                t_obj=tfc.square(self.__T(layer)[:,:,:,first_channel:last_channel])
+                t_obj=tfc.square(self.T(layer)[:,:,:,first_channel:last_channel])
             else:
-                t_obj=self.__T(layer)[:,:,:,first_channel:last_channel]
+                t_obj=self.T(layer)[:,:,:,first_channel:last_channel]
             t_score = tfc.reduce_mean(t_obj)  # defining the optimization objective
             t_grad = tfc.gradients(t_score, self.__t_input)[0]  
         return t_grad
@@ -124,7 +124,7 @@ class Dreamer:
         ###Set layers and channels
         t_obs=[]
         for r in renderers:
-            t_obs.append(self.__set_layer(r['layer'], r['squared'], r['f_channel'], r['l_channel']))
+            t_obs.append(self.set_layer(r['layer'], r['squared'], r['f_channel'], r['l_channel']))
         ##Create background
         g_sum = np.zeros_like(img)
         # split the image into a number of octaves
@@ -133,12 +133,12 @@ class Dreamer:
         #Prepare Image & backgrounds for every octave
         for i in range(octave_n - 1):
             hw = img.shape[:2]
-            lo = self.resize(img, np.int32(np.float32(hw) / octave_scale))
-            hi = img - self.resize(lo, hw)
+            lo = self.__resize(img, np.int32(np.float32(hw) / octave_scale))
+            hi = img - self.__resize(lo, hw)
             img = lo
             octaves.append(hi)
-            lo = self.resize(g_sum, np.int32(np.float32(hw) / octave_scale))
-            hi = g_sum - self.resize(lo, hw)
+            lo = self.__resize(g_sum, np.int32(np.float32(hw) / octave_scale))
+            hi = g_sum - self.__resize(lo, hw)
             g_sum = lo
             g_sums.append(hi)
         # generate details octave by octave
@@ -146,18 +146,18 @@ class Dreamer:
             ##Prepare current Octave
             if octave > 0:
                 hi = octaves[-octave]
-                img = self.resize(img, hi.shape[:2]) + hi
+                img = self.__resize(img, hi.shape[:2]) + hi
                 hi_g =g_sums[-octave]
-                g_sum = self.resize(g_sum, hi.shape[:2]) + hi_g
+                g_sum = self.__resize(g_sum, hi.shape[:2]) + hi_g
             ##More Preperations
             bounds=utils.get_bounds(img.shape[1], img.shape[0], renderers)
             iteration_masks=[]
             for r in renderers:
                 if r['masked']:
-                    iteration_masks.append(self.resize(r['mask'], img.shape[:2])/255)#move up, /255 just once
+                    iteration_masks.append(self.__resize(r['mask'], img.shape[:2])/255)#move up, /255 just once
                 else:
                     iteration_masks.append([])
-            orig_img_m=self.resize(image,img.shape[:2])/255#move up, /255 just once
+            orig_img_m=self.__resize(image,img.shape[:2])/255#move up, /255 just once
             ####Iterations
             for iteration in range(iterations-octave*iteration_descent):
                 print("Iteration "+str(iteration+1)+" / "+str(iterations-octave*iteration_descent) + " Octave: " +str(octave+1)+" / "+str(octave_n))
@@ -173,7 +173,7 @@ class Dreamer:
                         if renderers[i]['rotate']:
                             t_img=np.rot90(t_img, renderers[i]['rotation'])
                         ##Get the gradient
-                        g=self.__calc_grad_tiled(t_img,
+                        g=self.calc_grad_tiled(t_img,
                                         t_obs[i],
                                         tile_size=renderers[i]['tile_size'])
                         g=g * (renderers[i]['step_size'] / (np.abs(g).mean() + 1e-7))               
@@ -212,5 +212,23 @@ class Dreamer:
             utils.save_image(g_sum, 'gradient_'+out_name)
 
 
+_instance = Dreamer()
+sess = _instance.sess
+graph = _instance.graph
 
-    
+
+def close_and_reopen_session() -> None:
+    global sess
+    _instance.sess.close()
+    _instance.sess = tfc.InteractiveSession(graph=_instance.graph)
+    sess = _instance.sess
+
+
+def close_session() -> None:
+    global sess
+    _instance.sess.close()
+    sess = _instance.sess
+
+
+def dream_image(image: np.ndarray, settings: dict[str, Any], out_name: str) -> None:
+    _instance.dream_image(image, settings, out_name)

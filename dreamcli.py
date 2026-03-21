@@ -811,11 +811,10 @@ Dream
 """
 
 def dream():
-    d.sess.close()
+    d.close_and_reopen_session()
     out_name=parse_input(msg='Enter output Filename. Will be overwritten if it already exists: ', t='string')
-    d.sess = d.tfc.InteractiveSession(graph=d.graph)
     d.dream_image(settings.orig_image, settings.c_settings, out_name)
-    d.sess.close()
+    d.close_session()
 
 
 
