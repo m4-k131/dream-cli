@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.vscode/
+# Downloaded / local-only (Apache-licensed upstreams); do not commit — not redistributed via this repo
+inception5h.zip
+imagenet_comp_graph_label_strings.txt
+tensorflow_inception_graph.pb
