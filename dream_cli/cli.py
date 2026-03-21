@@ -1,10 +1,7 @@
 """Interactive terminal UI; delegates state and I/O to DreamApplication + Prompter."""
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Callable, Union
-
-import numpy as np
 
 import utils as utils_mod
 from dream_cli.application import DreamApplication
@@ -325,13 +322,13 @@ class InteractiveDreamCli:
         if self._p.int_range(0, 2) == 1:
             mc = r.max_channel
             f = self._p.int_range(0, mc - 1, "Enter first channel no. (Must be between 0 and " + str(mc - 1) + "):")
-            l = self._p.int_range(
+            last_ch = self._p.int_range(
                 f + 1,
                 mc,
                 "Enter last channel no. (Must be between " + str(f + 1) + " and " + str(mc) + "):",
             )
             r.f_channel = f
-            r.l_channel = l
+            r.l_channel = last_ch
         return r
 
     def _edit_squared(self, r: RendererConfig) -> RendererConfig:

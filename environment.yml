@@ -18,3 +18,4 @@ dependencies:
       - pillow==10.2.0
       - protobuf==3.19.6
       - ruff>=0.9
+      - pytest>=8

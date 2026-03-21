@@ -110,7 +110,6 @@ class Dreamer:
         print("Processing...")
         ####Global settings for every renderer
         img = image
-        orig_img=image#maybe clean up
         #Iterations and octaves
         iterations=settings['iterations']
         octave_n=settings['octaves']
