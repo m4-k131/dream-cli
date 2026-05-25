@@ -11,6 +11,8 @@ import tensorflow.compat.v1 as tfc
 import math
 import time as time
 from typing import Any
+
+from dream_cli.schemas import validate_and_fill_settings
  
  
 
@@ -106,24 +108,32 @@ class Dreamer:
         return t_grad
    
 
-    def dream_image(self, image:np.ndarray, settings:list, out_name) -> None:
+    def dream_image(self, image:np.ndarray, settings_raw: dict[str, Any], out_name: str) -> None:
         print("Processing...")
+
+        # Validate and fill defaults from schema
+        settings = validate_and_fill_settings(settings_raw)
+
         ####Global settings for every renderer
         img = image
-        #Iterations and octaves
-        iterations=settings['iterations']
-        octave_n=settings['octaves']
-        octave_scale=settings['octave_scale']
-        iteration_descent=settings['iteration_descent']  
+        #Iterations and octaves (with safe .get() and defaults)
+        iterations = settings.get("iterations", 20)
+        octave_n = settings.get("octaves", 4)
+        octave_scale = settings.get("octave_scale", 1.5)
+        iteration_descent = settings.get("iteration_descent", 0)
         #Additional Settings
-        save_gradient=settings['save_gradient']
-        background_color=settings['background']
+        save_gradient = settings.get("save_gradient", False)
+        background_color = settings.get("background", [0, 0, 0])
         #Renderers
-        renderers=settings['renderers']
+        renderers = settings.get("renderers", [])
         ###Set layers and channels
-        t_obs=[]
+        t_obs = []
         for r in renderers:
-            t_obs.append(self.set_layer(r['layer'], r['squared'], r['f_channel'], r['l_channel']))
+            layer_name = r.get("layer", "conv2d1_pre_relu")
+            squared = r.get("squared", True)
+            f_channel = r.get("f_channel", 0)
+            l_channel = r.get("l_channel", 64)
+            t_obs.append(self.set_layer(layer_name, squared, f_channel, l_channel))
         ##Create background
         g_sum = np.zeros_like(img)
         # split the image into a number of octaves
@@ -149,11 +159,13 @@ class Dreamer:
                 hi_g =g_sums[-octave]
                 g_sum = self.__resize(g_sum, hi.shape[:2]) + hi_g
             ##More Preperations
-            bounds=utils.get_bounds(img.shape[1], img.shape[0], renderers)
-            iteration_masks=[]
+            bounds = utils.get_bounds(img.shape[1], img.shape[0], renderers)
+            iteration_masks = []
             for r in renderers:
-                if r['masked']:
-                    iteration_masks.append(self.__resize(r['mask'], img.shape[:2])/255)#move up, /255 just once
+                masked = r.get("masked", False)
+                mask = r.get("mask", [])
+                if masked and mask:
+                    iteration_masks.append(self.__resize(mask, img.shape[:2]) / 255)  # move up, /255 just once
                 else:
                     iteration_masks.append([])
             orig_img_m=self.__resize(image,img.shape[:2])/255#move up, /255 just once
@@ -161,50 +173,61 @@ class Dreamer:
             for iteration in range(iterations-octave*iteration_descent):
                 print("Iteration "+str(iteration+1)+" / "+str(iterations-octave*iteration_descent) + " Octave: " +str(octave+1)+" / "+str(octave_n))
                 ####Gradient
-                gradients=[]
+                gradients = []
                 for i in range(len(renderers)):
-                    if (iteration+1)%renderers[i]['render_x_iteration']==0:
-                        start_time=time.time()
-                        ##Pre Gradient preperations
-                        #Crop the image
-                        t_img=img[bounds[i][2]:bounds[i][3],bounds[i][0]:bounds[i][1]]
-                        #Rotate if true
-                        if renderers[i]['rotate']:
-                            t_img=np.rot90(t_img, renderers[i]['rotation'])
-                        ##Get the gradient
-                        g=self.calc_grad_tiled(t_img,
-                                        t_obs[i],
-                                        tile_size=renderers[i]['tile_size'])
-                        g=g * (renderers[i]['step_size'] / (np.abs(g).mean() + 1e-7))               
-                        ##Gradient manipulations:
-                        #Rotate back if necessary
-                        if renderers[i]['rotate']:
-                            g=np.rot90(g, 4-renderers[i]['rotation'])
-                        #Masking the gradient
-                        if renderers[i]['masked']:
-                            g*=iteration_masks[i][bounds[i][2]:bounds[i][3],bounds[i][0]:bounds[i][1]]
-                        #Color Correction
-                        if renderers[i]['color_correction']:
-                            g=utils.gradient_grading(g, orig_img_m[bounds[i][2]:bounds[i][3],bounds[i][0]:bounds[i][1]],
-                                                    method=renderers[i]['cc_vars'][0],
-                                                    fr=renderers[i]['cc_vars'][1],
-                                                    fg=renderers[i]['cc_vars'][2],
-                                                    fb=renderers[i]['cc_vars'][3])
-                        ##Adding the finalized Gradient to list
+                    r = renderers[i]
+                    render_every = r.get("render_x_iteration", 1)
+                    if (iteration + 1) % render_every == 0:
+                        start_time = time.time()
+                        # Crop the image
+                        t_img = img[bounds[i][2]:bounds[i][3], bounds[i][0]:bounds[i][1]]
+                        # Rotate if true
+                        rotate = r.get("rotate", False)
+                        rotation = r.get("rotation", 0)
+                        if rotate:
+                            t_img = np.rot90(t_img, rotation)
+                        # Get the gradient
+                        tile_size = r.get("tile_size", 300)
+                        g = self.calc_grad_tiled(t_img, t_obs[i], tile_size=tile_size)
+                        step_size = r.get("step_size", 1.0)
+                        g = g * (step_size / (np.abs(g).mean() + 1e-7))
+                        # Gradient manipulations:
+                        # Rotate back if necessary
+                        if rotate:
+                            g = np.rot90(g, 4 - rotation)
+                        # Masking the gradient
+                        if r.get("masked", False):
+                            g *= iteration_masks[i][bounds[i][2]:bounds[i][3], bounds[i][0]:bounds[i][1]]
+                        # Color Correction
+                        if r.get("color_correction", False):
+                            cc_vars = r.get("cc_vars", [1, 4, 4, 4])
+                            g = utils.gradient_grading(
+                                g,
+                                orig_img_m[bounds[i][2]:bounds[i][3], bounds[i][0]:bounds[i][1]],
+                                method=cc_vars[0] if len(cc_vars) > 0 else 1,
+                                fr=cc_vars[1] if len(cc_vars) > 1 else 4,
+                                fg=cc_vars[2] if len(cc_vars) > 2 else 4,
+                                fb=cc_vars[3] if len(cc_vars) > 3 else 4,
+                            )
+                        # Adding the finalized Gradient to list
                         gradients.append(g)
-                        print('Finished computing Gradient for Renderer {} in {}s'.format(i, time.time()-start_time))
+                        print("Finished computing Gradient for Renderer {} in {}s".format(i, time.time() - start_time))
                     else:
                         gradients.append(np.zeros_like(img))
                 for i in range(len(bounds)):
                     img[bounds[i][2]:bounds[i][3],bounds[i][0]:bounds[i][1]] += gradients[i]
                     g_sum[bounds[i][2]:bounds[i][3],bounds[i][0]:bounds[i][1]]+= gradients[i]
         ####Save Image
-        if settings['color_correction']:
-            img=image+utils.gradient_grading(g_sum, image/255,
-                                                    method=settings['cc_vars'][0],
-                                                    fr=settings['cc_vars'][1],
-                                                    fg=settings['cc_vars'][2],
-                                                    fb=settings['cc_vars'][3])
+        if settings.get("color_correction", False):
+            cc_vars = settings.get("cc_vars", [1, 4, 4, 4])
+            img = image + utils.gradient_grading(
+                g_sum,
+                image / 255,
+                method=cc_vars[0] if len(cc_vars) > 0 else 1,
+                fr=cc_vars[1] if len(cc_vars) > 1 else 4,
+                fg=cc_vars[2] if len(cc_vars) > 2 else 4,
+                fb=cc_vars[3] if len(cc_vars) > 3 else 4,
+            )
         g_sum[:,:]+=background_color
         utils.save_image(img, out_name)
         if save_gradient:
