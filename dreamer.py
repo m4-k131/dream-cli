@@ -9,12 +9,12 @@ import tensorflow as tf
 import utils as utils
 import tensorflow.compat.v1 as tfc
 import math
-import time as time
 from typing import Any
 
+from tqdm import tqdm
+
 from dream_cli.schemas import validate_and_fill_settings
- 
- 
+
 
 class Constants:
     model_fn = "tensorflow_inception_graph.pb"
@@ -43,196 +43,192 @@ class Dreamer:
             #default 117.0
             t_preprocessed = tf.expand_dims(self.__t_input - Constants.imagenet_mean, 0)
             tfc.import_graph_def(self.__graph_def, {'input':t_preprocessed})
-        self.__resize = self.tffunc(np.float32, np.int32)(Dreamer.resize)
-    
-    
-    def T(self, layer):
-        '''Helper for getting layer output tensor'''
-        return self.graph.get_tensor_by_name("import/%s:0" % layer)
- 
+        self.__resize = self.create_tf_function(np.float32, np.int32)(Dreamer.resize_image)
+
+    def get_layer_tensor(self, layer_name: str):
+        return self.graph.get_tensor_by_name("import/%s:0" % layer_name)
 
     @staticmethod
-    def tffunc(*argtypes):
-        '''Helper that transforms TF-graph generating function into a regular one.
-        See "resize" function below.
-        '''
-        placeholders = list(map(tfc.placeholder, argtypes))
-        def wrap(f):
-            out = f(*placeholders)
-            def wrapper(*args, **kw):
-                return out.eval(dict(zip(placeholders, args)), session=kw.get('session'))
+    def create_tf_function(*argument_types):
+        placeholders = list(map(tfc.placeholder, argument_types))
+
+        def wrap_function(user_function):
+            output_tensor = user_function(*placeholders)
+
+            def wrapper(*arguments, **kwargs):
+                feed_dict = dict(zip(placeholders, arguments))
+                session = kwargs.get("session")
+                return output_tensor.eval(feed_dict, session=session)
+
             return wrapper
-        return wrap
-    
+        return wrap_function
 
     @staticmethod
-    def resize(img:np.ndarray, size:tuple):
-        img = tf.expand_dims(img, 0)
-        return tfc.image.resize_bilinear(img, size)[0,:,:,:]
- 
+    def resize_image(image: np.ndarray, target_size: tuple):
+        expanded = tf.expand_dims(image, 0)
+        resized = tfc.image.resize_bilinear(expanded, target_size)
+        return resized[0, :, :, :]
 
     @staticmethod
-    def get_tile_size(num_pixels:int, tile_size:int = 400) -> int:
-        num_tiles = int(round(num_pixels / tile_size))
-        num_tiles = max(1, num_tiles)
-        actual_tile_size = math.ceil(num_pixels / num_tiles)
-        return actual_tile_size
+    def calculate_tile_size(num_pixels: int, preferred_tile_size: int = 400) -> int:
+        estimated_tiles = max(1, round(num_pixels / preferred_tile_size))
+        return math.ceil(num_pixels / estimated_tiles)
 
-
-    def calc_grad_tiled(self, img:np.ndarray, t_grad:np.ndarray, tile_size=550) -> np.ndarray:
-        '''Compute the value of tensor t_grad over the image in a tiled way.
-    Random shifts are applied to the image to blur tile boundaries over
-    multiple iterations.'''
-        sz = tile_size
-        h, w = img.shape[:2]
-        sx, sy = np.random.randint(sz, size=2)
-        img_shift = np.roll(np.roll(img, sx, 1), sy, 0)
-        grad = np.zeros_like(img)
-        for y in range(0, max(h-sz//2, sz),sz):
-            for x in range(0, max(w-sz//2, sz),sz):
-                sub = img_shift[y:y+sz,x:x+sz]
+    def calculate_gradient_tiled(self, image: np.ndarray, gradient_tensor: np.ndarray, tile_size: int = 550) -> np.ndarray:
+        height, width = image.shape[:2]
+        shift_x, shift_y = np.random.randint(tile_size, size=2)
+        shifted_image = np.roll(np.roll(image, shift_x, axis=1), shift_y, axis=0)
+        gradient = np.zeros_like(image)
+        half_tile = tile_size // 2
+        max_y = max(height - half_tile, tile_size)
+        max_x = max(width - half_tile, tile_size)
+        for y in range(0, max_y, tile_size):
+            for x in range(0, max_x, tile_size):
+                tile = shifted_image[y:y + tile_size, x:x + tile_size]
                 with tfc.device(self.__device_name):
-                    g = self.sess.run(t_grad, {self.__t_input:sub})
-                    grad[y:y+sz,x:x+sz] = g
-        return np.roll(np.roll(grad, -sx, 1), -sy, 0)
- 
- 
-    def set_layer(self, layer, squared:bool = True, first_channel:int = 0, last_channel:int = 1):
+                    tile_gradient = self.sess.run(gradient_tensor, {self.__t_input: tile})
+                gradient[y:y + tile_size, x:x + tile_size] = tile_gradient
+        return np.roll(np.roll(gradient, -shift_x, axis=1), -shift_y, axis=0)
+
+    def set_layer(self, layer_name: str, squared: bool = True, first_channel: int = 0, last_channel: int = 1):
         with tfc.device(self.__device_name):
+            layer_tensor = self.get_layer_tensor(layer_name)
+            channel_slice = layer_tensor[:, :, :, first_channel:last_channel]
             if squared:
-                t_obj=tfc.square(self.T(layer)[:,:,:,first_channel:last_channel])
+                objective_tensor = tfc.square(channel_slice)
             else:
-                t_obj=self.T(layer)[:,:,:,first_channel:last_channel]
-            t_score = tfc.reduce_mean(t_obj)  # defining the optimization objective
-            t_grad = tfc.gradients(t_score, self.__t_input)[0]  
-        return t_grad
-   
+                objective_tensor = channel_slice
+            score_tensor = tfc.reduce_mean(objective_tensor)
+            input_gradient = tfc.gradients(score_tensor, self.__t_input)[0]
+        return input_gradient
 
-    def dream_image(self, image:np.ndarray, settings_raw: dict[str, Any], out_name: str) -> None:
-        print("Processing...")
+    def _build_pyramids(self, image: np.ndarray, gradient_accumulator: np.ndarray, octave_count: int, octave_scale: float):
+        """Build Laplacian pyramids for image and gradient accumulator."""
+        image_octaves = []
+        gradient_octaves = []
+        working_image = image.copy()
+        working_gradient = gradient_accumulator.copy()
+        for _ in range(octave_count - 1):
+            height, width = working_image.shape[:2]
+            downscaled = self.__resize(working_image, np.int32(np.float32((height, width)) / octave_scale))
+            detail = working_image - self.__resize(downscaled, (height, width))
+            working_image = downscaled
+            image_octaves.append(detail)
+            downscaled_gradient = self.__resize(working_gradient, np.int32(np.float32((height, width)) / octave_scale))
+            gradient_detail = working_gradient - self.__resize(downscaled_gradient, (height, width))
+            working_gradient = downscaled_gradient
+            gradient_octaves.append(gradient_detail)
+        return working_image, working_gradient, image_octaves, gradient_octaves
 
-        # Validate and fill defaults from schema
+    def _process_octave(self, octave: int, working_image: np.ndarray, gradient_accumulator: np.ndarray,
+                        original_image: np.ndarray, image_octaves: list, gradient_octaves: list,
+                        renderers: list, layer_gradients: list, iterations: int, iteration_descent: int, octave_count: int):
+        """Process a single octave: restore from pyramid, prepare masks/bounds, run iterations."""
+        if octave > 0:
+            detail = image_octaves[-octave]
+            working_image = self.__resize(working_image, detail.shape[:2]) + detail
+            gradient_detail = gradient_octaves[-octave]
+            gradient_accumulator = self.__resize(gradient_accumulator, detail.shape[:2]) + gradient_detail
+
+        bounds_list = utils.get_bounds(working_image.shape[1], working_image.shape[0], renderers)
+        unpacked_bounds = [(b[0], b[1], b[2], b[3]) for b in bounds_list]
+
+        iteration_masks = []
+        for renderer in renderers:
+            masked = renderer.get("masked", False)
+            mask = renderer.get("mask", [])
+            if masked and mask:
+                iteration_masks.append(self.__resize(mask, working_image.shape[:2]) / 255)
+            else:
+                iteration_masks.append(None)
+
+        reference_image = self.__resize(original_image, working_image.shape[:2]) / 255
+        iterations_this_octave = iterations - octave * iteration_descent
+
+        for iteration in tqdm(
+            range(iterations_this_octave),
+            desc=f"Octave {octave + 1}/{octave_count}",
+            unit="iter",
+            leave=True,
+        ):
+            for renderer_index, renderer in enumerate(renderers):
+                render_every = renderer.get("render_x_iteration", 1)
+                if (iteration + 1) % render_every != 0:
+                    continue
+
+                x_start, x_end, y_start, y_end = unpacked_bounds[renderer_index]
+                tile_image = working_image[y_start:y_end, x_start:x_end]
+
+                rotate = renderer.get("rotate", False)
+                rotation = renderer.get("rotation", 0)
+                if rotate:
+                    tile_image = np.rot90(tile_image, rotation)
+
+                tile_size = renderer.get("tile_size", 300)
+                gradient = self.calculate_gradient_tiled(tile_image, layer_gradients[renderer_index], tile_size=tile_size)
+                step_size = renderer.get("step_size", 1.0)
+                gradient = gradient * (step_size / (np.abs(gradient).mean() + 1e-7))
+
+                if rotate:
+                    gradient = np.rot90(gradient, 4 - rotation)
+
+                if renderer.get("masked", False):
+                    mask = iteration_masks[renderer_index]
+                    if mask is not None:
+                        gradient *= mask[y_start:y_end, x_start:x_end]
+
+                if renderer.get("color_correction", False):
+                    cc_vars = renderer.get("cc_vars", [1, 4, 4, 4])
+                    gradient = utils.gradient_grading(
+                        gradient,
+                        reference_image[y_start:y_end, x_start:x_end],
+                        method=cc_vars[0] if len(cc_vars) > 0 else 1,
+                        fr=cc_vars[1] if len(cc_vars) > 1 else 4,
+                        fg=cc_vars[2] if len(cc_vars) > 2 else 4,
+                        fb=cc_vars[3] if len(cc_vars) > 3 else 4,
+                    )
+
+                working_image[y_start:y_end, x_start:x_end] += gradient
+                gradient_accumulator[y_start:y_end, x_start:x_end] += gradient
+        return working_image, gradient_accumulator
+
+    def dream_image(self, image: np.ndarray, settings_raw: dict[str, Any], out_name: str) -> None:
         settings = validate_and_fill_settings(settings_raw)
-
-        ####Global settings for every renderer
-        img = image
-        #Iterations and octaves (with safe .get() and defaults)
         iterations = settings.get("iterations", 20)
-        octave_n = settings.get("octaves", 4)
+        octave_count = settings.get("octaves", 4)
         octave_scale = settings.get("octave_scale", 1.5)
         iteration_descent = settings.get("iteration_descent", 0)
-        #Additional Settings
         save_gradient = settings.get("save_gradient", False)
-        background_color = settings.get("background", [0, 0, 0])
-        #Renderers
         renderers = settings.get("renderers", [])
-        ###Set layers and channels
-        t_obs = []
-        for r in renderers:
-            layer_name = r.get("layer", "conv2d1_pre_relu")
-            squared = r.get("squared", True)
-            f_channel = r.get("f_channel", 0)
-            l_channel = r.get("l_channel", 64)
-            t_obs.append(self.set_layer(layer_name, squared, f_channel, l_channel))
-        ##Create background
-        g_sum = np.zeros_like(img)
-        # split the image into a number of octaves
-        octaves = []
-        g_sums = []
-        #Prepare Image & backgrounds for every octave
-        for i in range(octave_n - 1):
-            hw = img.shape[:2]
-            lo = self.__resize(img, np.int32(np.float32(hw) / octave_scale))
-            hi = img - self.__resize(lo, hw)
-            img = lo
-            octaves.append(hi)
-            lo = self.__resize(g_sum, np.int32(np.float32(hw) / octave_scale))
-            hi = g_sum - self.__resize(lo, hw)
-            g_sum = lo
-            g_sums.append(hi)
-        # generate details octave by octave
-        for octave in range(octave_n):
-            ##Prepare current Octave
-            if octave > 0:
-                hi = octaves[-octave]
-                img = self.__resize(img, hi.shape[:2]) + hi
-                hi_g =g_sums[-octave]
-                g_sum = self.__resize(g_sum, hi.shape[:2]) + hi_g
-            ##More Preperations
-            bounds = utils.get_bounds(img.shape[1], img.shape[0], renderers)
-            iteration_masks = []
-            for r in renderers:
-                masked = r.get("masked", False)
-                mask = r.get("mask", [])
-                if masked and mask:
-                    iteration_masks.append(self.__resize(mask, img.shape[:2]) / 255)  # move up, /255 just once
-                else:
-                    iteration_masks.append([])
-            orig_img_m=self.__resize(image,img.shape[:2])/255#move up, /255 just once
-            ####Iterations
-            for iteration in range(iterations-octave*iteration_descent):
-                print("Iteration "+str(iteration+1)+" / "+str(iterations-octave*iteration_descent) + " Octave: " +str(octave+1)+" / "+str(octave_n))
-                ####Gradient
-                gradients = []
-                for i in range(len(renderers)):
-                    r = renderers[i]
-                    render_every = r.get("render_x_iteration", 1)
-                    if (iteration + 1) % render_every == 0:
-                        start_time = time.time()
-                        # Crop the image
-                        t_img = img[bounds[i][2]:bounds[i][3], bounds[i][0]:bounds[i][1]]
-                        # Rotate if true
-                        rotate = r.get("rotate", False)
-                        rotation = r.get("rotation", 0)
-                        if rotate:
-                            t_img = np.rot90(t_img, rotation)
-                        # Get the gradient
-                        tile_size = r.get("tile_size", 300)
-                        g = self.calc_grad_tiled(t_img, t_obs[i], tile_size=tile_size)
-                        step_size = r.get("step_size", 1.0)
-                        g = g * (step_size / (np.abs(g).mean() + 1e-7))
-                        # Gradient manipulations:
-                        # Rotate back if necessary
-                        if rotate:
-                            g = np.rot90(g, 4 - rotation)
-                        # Masking the gradient
-                        if r.get("masked", False):
-                            g *= iteration_masks[i][bounds[i][2]:bounds[i][3], bounds[i][0]:bounds[i][1]]
-                        # Color Correction
-                        if r.get("color_correction", False):
-                            cc_vars = r.get("cc_vars", [1, 4, 4, 4])
-                            g = utils.gradient_grading(
-                                g,
-                                orig_img_m[bounds[i][2]:bounds[i][3], bounds[i][0]:bounds[i][1]],
-                                method=cc_vars[0] if len(cc_vars) > 0 else 1,
-                                fr=cc_vars[1] if len(cc_vars) > 1 else 4,
-                                fg=cc_vars[2] if len(cc_vars) > 2 else 4,
-                                fb=cc_vars[3] if len(cc_vars) > 3 else 4,
-                            )
-                        # Adding the finalized Gradient to list
-                        gradients.append(g)
-                        print("Finished computing Gradient for Renderer {} in {}s".format(i, time.time() - start_time))
-                    else:
-                        gradients.append(np.zeros_like(img))
-                for i in range(len(bounds)):
-                    img[bounds[i][2]:bounds[i][3],bounds[i][0]:bounds[i][1]] += gradients[i]
-                    g_sum[bounds[i][2]:bounds[i][3],bounds[i][0]:bounds[i][1]]+= gradients[i]
-        ####Save Image
+        layer_gradients = []
+        for renderer in renderers:
+            layer_name = renderer.get("layer", "conv2d1_pre_relu")
+            squared = renderer.get("squared", True)
+            first_channel = renderer.get("f_channel", 0)
+            last_channel = renderer.get("l_channel", 64)
+            layer_gradients.append(self.set_layer(layer_name, squared, first_channel, last_channel))
+        gradient_accumulator = np.zeros_like(image)
+        working_image, gradient_accumulator, image_octaves, gradient_octaves = self._build_pyramids(
+            image, gradient_accumulator, octave_count, octave_scale
+        )
+        for octave in range(octave_count):
+            working_image, gradient_accumulator = self._process_octave(
+                octave, working_image, gradient_accumulator, image, image_octaves, gradient_octaves,
+                renderers, layer_gradients, iterations, iteration_descent, octave_count
+            )
         if settings.get("color_correction", False):
             cc_vars = settings.get("cc_vars", [1, 4, 4, 4])
-            img = image + utils.gradient_grading(
-                g_sum,
+            working_image = image + utils.gradient_grading(
+                gradient_accumulator,
                 image / 255,
                 method=cc_vars[0] if len(cc_vars) > 0 else 1,
                 fr=cc_vars[1] if len(cc_vars) > 1 else 4,
                 fg=cc_vars[2] if len(cc_vars) > 2 else 4,
                 fb=cc_vars[3] if len(cc_vars) > 3 else 4,
             )
-        g_sum[:,:]+=background_color
-        utils.save_image(img, out_name)
+        utils.save_image(working_image, out_name)
         if save_gradient:
-            utils.save_image(g_sum, 'gradient_'+out_name)
-
+            utils.save_image(gradient_accumulator, "gradient_" + out_name)
 
 _instance = Dreamer()
 sess = _instance.sess
