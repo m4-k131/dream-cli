@@ -1,0 +1,48 @@
+---
+description: dream-cli project — DeepDream CLI with Inception v1 (TensorFlow compat.v1)
+alwaysApply: true
+---
+
+# dream-cli
+
+Interactive CLI for **DeepDream** on still images using Google’s **Inception “5h”** graph (`tensorflow_inception_graph.pb`, downloaded from `inception5h.zip` on first use). Core idea: maximize activations (or squared activations) on chosen layers/channels via gradient ascent on the input image, with octaves and optional tiling, crops, masks, and color tweaks.
+
+## Layout
+
+| Path | Role |
+|------|------|
+| `dreamcli.py` | Thin entry: `argparse` + `DreamApplication` + `InteractiveDreamCli`. |
+| `dream_cli/application.py` | `DreamApplication`: paths, session (`orig_image`, `DreamSettings`), persistence, `run_dream` (lazy-imports `dreamer`). |
+| `dream_cli/models.py` | `DreamSettings`, `RendererConfig` dataclasses; JSON + `dreamer` runtime dict adapters. |
+| `dream_cli/cli.py` | `InteractiveDreamCli`: terminal menus (`while`/`return` instead of recursion). |
+| `dream_cli/prompts.py` | `Prompter`: validated `input()` helpers only. |
+| `dream_cli/layers.py` + `inception_layers.json` | Inception tensor names / channel counts. |
+| `dreamer.py` | `Dreamer` + module helpers for TF graph and `dream_image`. |
+| `settings.py` | Legacy dict defaults for old scripts; prefer `dream_cli`. |
+| `utils.py` | Download/extract Inception zip, load/save JPEG, gradient color grading, crop bounds. |
+| `Images/` | Input JPEGs (user-provided). |
+| `Settings/` | `*_s.json` saved settings; `Settings/Renderer/` holds `*_r.json` renderer presets. |
+
+## TensorFlow stack
+
+- Uses **`tensorflow.compat.v1`** (`import tensorflow.compat.v1 as tfc`) with the v1 execution style (`InteractiveSession`, `GraphDef`, `import_graph_def`). The project does **not** require the latest TensorFlow; older TF2 (or TF1 with minor edits) is fine as long as `compat.v1` works.
+- GPU: `Dreamer` picks `GPU:0` when `tf.config.experimental.list_physical_devices('GPU')` is non-empty; otherwise `CPU:0`.
+- Importing `dreamer` constructs one `Dreamer` instance and loads the graph (startup cost + download on first run).
+- **Runtime**: Prefer the repo Conda prefix **`.venv`** from **`environment.yml`** (`conda activate ./.venv`). It uses **Python 3.10** (pattern matching) and **TensorFlow 2.9.3** with CUDA/cuDNN pins derived from the author’s reference env **`tf`**. Use **`conda list -n tf --export`** (or the checked-in `environment.yml`) as the lookup, not ad hoc pip upgrades.
+
+## Domain vocabulary
+
+- **Settings**: iterations, octaves, `octave_scale`, `iteration_descent`, background gradient export, global color correction, list of renderers.
+- **Renderer**: Inception **layer name**, channel range (`f_channel`–`l_channel`), squared vs linear objective, step size, tile size, optional crop (`boundraries`), mask, rotation, per-renderer color correction, `render_x_iteration` (compute every N iterations).
+- **Layer list**: `dreamcli.get_layer_list()` mirrors tensor names under `import/<layer>:0` in the frozen graph.
+
+## Agent guidance
+
+- Prefer **small, focused changes**; the codebase is legacy-style (menus, dict settings, module globals in `settings.py`).
+- When changing the dream loop or graph usage, keep **compat.v1** APIs and tensor names consistent with the imported graph.
+- Do not assume ad hoc `pip install tensorflow` defines the GPU stack; see **README** / **`environment.yml`** for **`.venv`**. Optional bump: **TensorFlow 2.10.1** also has **cp310** Windows wheels if you need a small step newer than 2.9.x.
+
+## Ruff
+
+- **Always run Ruff** after meaningful Python changes: from the repo root, `ruff check .` (or `python -m ruff check .` / `.venv/Scripts/ruff check .` using the **`.venv`** interpreter from **`environment.yml`**). Scope to touched paths when the full tree is unnecessary.
+- **Fix all Ruff findings** (or adjust config with a clear reason) before considering the task complete; Ruff is the project linter — Pylance/Pyright are not used for lint rules here.

@@ -5,3 +5,4 @@ __pycache__/
 inception5h.zip
 imagenet_comp_graph_label_strings.txt
 tensorflow_inception_graph.pb
+renderedImages/
