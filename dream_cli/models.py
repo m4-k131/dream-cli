@@ -44,7 +44,33 @@ def _settings_template_dict() -> dict[str, Any]:
         "renderers": [],
         "color_correction": False,
         "cc_vars": [1, 4, 4, 4],
+        "sequence": None,
     }
+
+
+@dataclass
+class SequenceParams:
+    zoom: float = 1.0
+    rotation_deg: float = 0.0
+    translate_x: float = 0.0
+    translate_y: float = 0.0
+
+    @classmethod
+    def from_mapping(cls, raw: Mapping[str, Any]) -> SequenceParams:
+        return cls(
+            zoom=float(raw.get("zoom", 1.0)),
+            rotation_deg=float(raw.get("rotation_deg", 0.0)),
+            translate_x=float(raw.get("translate_x", 0.0)),
+            translate_y=float(raw.get("translate_y", 0.0)),
+        )
+
+    def to_stored_dict(self) -> dict[str, Any]:
+        return {
+            "zoom": self.zoom,
+            "rotation_deg": self.rotation_deg,
+            "translate_x": self.translate_x,
+            "translate_y": self.translate_y,
+        }
 
 
 @dataclass
@@ -104,6 +130,7 @@ class DreamSettings:
     renderers: list[RendererConfig] = field(default_factory=list)
     color_correction: bool = False
     cc_vars: list[Any] = field(default_factory=lambda: [1, 4, 4, 4])
+    sequence: SequenceParams | None = None
 
     @classmethod
     def default_new(cls) -> DreamSettings:
@@ -114,6 +141,7 @@ class DreamSettings:
         merged = _settings_template_dict()
         merged.update(dict(raw))
         rend_raw = merged.pop("renderers", [])
+        seq_raw = merged.pop("sequence", None)
         ds = cls(
             name=str(merged["name"]),
             iterations=int(merged["iterations"]),
@@ -125,6 +153,7 @@ class DreamSettings:
             renderers=[RendererConfig.from_mapping(x) for x in rend_raw],
             color_correction=bool(merged["color_correction"]),
             cc_vars=list(merged["cc_vars"]),
+            sequence=SequenceParams.from_mapping(seq_raw) if seq_raw is not None else None,
         )
         for r in ds.renderers:
             if r.mask_name and r.mask is not None and not hasattr(r.mask, "shape"):
@@ -132,7 +161,7 @@ class DreamSettings:
         return ds
 
     def to_stored_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "name": self.name,
             "iterations": self.iterations,
             "octaves": self.octaves,
@@ -144,6 +173,9 @@ class DreamSettings:
             "color_correction": self.color_correction,
             "cc_vars": copy.deepcopy(self.cc_vars),
         }
+        if self.sequence is not None:
+            d["sequence"] = self.sequence.to_stored_dict()
+        return d
 
     def to_runtime_dreamer_dict(self) -> dict[str, Any]:
         return {
