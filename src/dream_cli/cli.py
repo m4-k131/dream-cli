@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Callable, Union
 
-import utils as utils_mod
+import dream_cli.utils as utils_mod
 from dream_cli.application import DreamApplication
 from dream_cli.layers import inception_layers
 from dream_cli.models import DreamSettings, RendererConfig

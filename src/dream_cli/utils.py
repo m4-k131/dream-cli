@@ -88,4 +88,3 @@ def get_bounds(x_max:float, y_max:float, renderers:list) -> list:
         else:
             t_bounds.append([0,x_max,0,y_max])        
     return t_bounds
-    
