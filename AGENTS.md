@@ -9,17 +9,25 @@ Interactive CLI for **DeepDream** on still images using Googleâ€™s **Inception â
 
 ## Layout
 
+All source lives under **`src/dream_cli/`** (src layout; `pyproject.toml` sets `pythonpath = ["src"]` for tests).
+
 | Path | Role |
 |------|------|
-| `dreamcli.py` | Thin entry: `argparse` + `DreamApplication` + `InteractiveDreamCli`. |
-| `dream_cli/application.py` | `DreamApplication`: paths, session (`orig_image`, `DreamSettings`), persistence, `run_dream` (lazy-imports `dreamer`). |
-| `dream_cli/models.py` | `DreamSettings`, `RendererConfig` dataclasses; JSON + `dreamer` runtime dict adapters. |
-| `dream_cli/cli.py` | `InteractiveDreamCli`: terminal menus (`while`/`return` instead of recursion). |
-| `dream_cli/prompts.py` | `Prompter`: validated `input()` helpers only. |
-| `dream_cli/layers.py` + `inception_layers.json` | Inception tensor names / channel counts. |
-| `dreamer.py` | `Dreamer` + module helpers for TF graph and `dream_image`. |
-| `settings.py` | Legacy dict defaults for old scripts; prefer `dream_cli`. |
-| `utils.py` | Download/extract Inception zip, load/save JPEG, gradient color grading, crop bounds. |
+| `src/dream_cli/application.py` | `DreamApplication`: paths, session (`orig_image`, `DreamSettings`), persistence, `run_dream` (lazy-imports `dream_cli.dreamer`). |
+| `src/dream_cli/models.py` | `DreamSettings`, `RendererConfig` dataclasses; JSON + `dreamer` runtime dict adapters. |
+| `src/dream_cli/cli.py` | `InteractiveDreamCli`: terminal menus (`while`/`return` instead of recursion). |
+| `src/dream_cli/prompts.py` | `Prompter`: validated `input()` helpers only. |
+| `src/dream_cli/layers.py` + `inception_layers.json` | Inception tensor names / channel counts. |
+| `src/dream_cli/dreamer.py` | `Dreamer` + module helpers for TF graph and `dream_image`. |
+| `src/dream_cli/utils.py` | Download/extract Inception zip, load/save JPEG, gradient color grading, crop bounds. |
+| `src/dream_cli/legacy.py` | Legacy dict defaults for old scripts; prefer `dream_cli.application`. |
+| `src/dream_cli/schemas.py` | JSON schema dicts + `validate_and_fill_settings` / `validate_and_fill_renderer`. |
+| `src/dream_cli/sequence.py` | Keyframe loading, interpolation, canvas transforms for sequence rendering. |
+| `src/dream_cli/_scripts/dreamcli.py` | Interactive CLI entry point (`dreamcli` console script). |
+| `src/dream_cli/_scripts/dream.py` | Non-interactive single-image entry point (`dream` console script). |
+| `src/dream_cli/_scripts/render_sequence.py` | Sequence renderer entry point (`render-sequence` console script). |
+| `dreamcli.py` / `dream.py` / `render_sequence.py` | Root shims for `python <script>.py` backward compatibility. |
+| `settings.py` | Root shim re-exporting from `dream_cli.legacy`. |
 | `Images/` | Input JPEGs (user-provided). |
 | `Settings/` | `*_s.json` saved settings; `Settings/Renderer/` holds `*_r.json` renderer presets. |
 

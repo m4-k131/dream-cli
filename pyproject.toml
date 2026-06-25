@@ -1,3 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "dream-cli"
+version = "0.1.0"
+description = "Interactive DeepDream CLI using the Inception 5h frozen graph"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "Pillow",
+    "tqdm",
+    "tensorflow",
+]
+
+[project.scripts]
+dreamcli = "dream_cli._scripts.dreamcli:main"
+dream = "dream_cli._scripts.dream:main"
+render-sequence = "dream_cli._scripts.render_sequence:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.ruff]
+src = ["src"]

@@ -8,7 +8,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-import utils as utils_mod
+import dream_cli.utils as utils_mod
 from dream_cli.models import DreamSettings, RendererConfig
 
 
@@ -62,7 +62,7 @@ class DreamApplication:
         self.orig_image_name = path.name
 
     def run_dream(self, output_basename: str) -> None:
-        import dreamer as dreamer_mod
+        import dream_cli.dreamer as dreamer_mod
         if not self.has_image():
             raise RuntimeError("No image selected")
         if not self.settings.renderers:
