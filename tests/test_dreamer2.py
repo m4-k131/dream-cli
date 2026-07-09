@@ -3,14 +3,17 @@
 These tests use tiny synthetic images so they run without a GPU and without
 downloading ImageNet weights (weights=None).  Full model quality is not
 verified — only shapes, types, and control-flow paths.
+
+The entire module is skipped when TensorFlow is not installed (e.g. in CI).
 """
 from __future__ import annotations
 
 import numpy as np
 import pytest
-import tensorflow as tf
 
-from dream_cli.model_registry import (
+tf = pytest.importorskip("tensorflow", reason="TensorFlow not installed — skipping dreamer2 tests")
+
+from dream_cli.model_registry import (  # noqa: E402
     default_layers_for,
     known_model_names,
     list_layer_names,
